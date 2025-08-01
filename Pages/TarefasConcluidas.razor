@@ -1,0 +1,591 @@
+@page "/tarefas/concluidas"
+@inject ITarefaService TarefaService
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Tarefas Concluídas - IbnelveApi</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/" class="text-decoration-none">
+                            <i class="fas fa-home me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="/tarefas" class="text-decoration-none">
+                            <i class="fas fa-tasks me-1"></i>Tarefas
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-check-circle me-1"></i>Concluídas
+                    </li>
+                </ol>
+            </nav>
+
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-check-circle me-2 text-success"></i>
+                        Tarefas Concluídas
+                    </h1>
+                    <p class="text-muted mb-0">
+                        @if (tarefas != null)
+                        {
+                            <span>@tarefas.Count tarefas concluídas • Histórico de realizações</span>
+                        }
+                        else
+                        {
+                            <span>Carregando histórico de tarefas concluídas...</span>
+                        }
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/tarefas/nova" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Nova Tarefa
+                    </a>
+                    <a href="/tarefas" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Todas as Tarefas
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <div class="spinner-border text-success mb-3" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                        <h5>Carregando tarefas concluídas...</h5>
+                        <p class="text-muted">Buscando seu histórico de realizações.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="alert alert-danger" role="alert">
+                    <h4 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Erro ao carregar
+                    </h4>
+                    <p>@errorMessage</p>
+                    <hr>
+                    <button class="btn btn-outline-danger" @onclick="LoadTarefas">
+                        <i class="fas fa-sync-alt me-2"></i>Tentar novamente
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else if (tarefas?.Count == 0)
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card border-info">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-clipboard-list fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">Nenhuma tarefa concluída ainda</h4>
+                        <p class="text-muted mb-4">
+                            Quando você concluir suas primeiras tarefas, elas aparecerão aqui como um histórico de suas realizações.
+                        </p>
+                        <div class="d-flex gap-2 justify-content-center">
+                            <a href="/tarefas" class="btn btn-outline-primary">
+                                <i class="fas fa-tasks me-2"></i>Ver Tarefas Pendentes
+                            </a>
+                            <a href="/tarefas/nova" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Criar Nova Tarefa
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Estatísticas de Produtividade -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                        <h4>@tarefas.Count</h4>
+                        <small>Tarefas Concluídas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-calendar-week fa-2x mb-2"></i>
+                        <h4>@GetTarefasEstaSemana()</h4>
+                        <small>Esta Semana</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-dark">
+                    <div class="card-body text-center">
+                        <i class="fas fa-fire fa-2x mb-2"></i>
+                        <h4>@GetTarefasAltaPrioridade()</h4>
+                        <small>Alta/Crítica</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-trophy fa-2x mb-2"></i>
+                        <h4>@GetTempoMedioConclusao()</h4>
+                        <small>Dias Médios</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parabéns -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-success border-success" role="alert">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-trophy fa-2x me-3 text-warning"></i>
+                        <div class="flex-grow-1">
+                            <h5 class="alert-heading mb-1">Parabéns pela produtividade!</h5>
+                            <p class="mb-0">
+                                Você já concluiu <strong>@tarefas.Count tarefas</strong>! 
+                                @if (GetTarefasEstaSemana() > 0)
+                                {
+                                    <span>Sendo <strong>@GetTarefasEstaSemana() nesta semana</strong>.</span>
+                                }
+                                Continue assim! 🎉
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label">Período</label>
+                                <select class="form-select" @onchange="FiltrarPorPeriodo">
+                                    <option value="">Todos os períodos</option>
+                                    <option value="hoje">Hoje</option>
+                                    <option value="semana">Esta semana</option>
+                                    <option value="mes">Este mês</option>
+                                    <option value="trimestre">Este trimestre</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Prioridade</label>
+                                <select class="form-select" @onchange="FiltrarPorPrioridade">
+                                    <option value="">Todas as prioridades</option>
+                                    <option value="@PrioridadeTarefa.Critica">🔴 Crítica</option>
+                                    <option value="@PrioridadeTarefa.Alta">🟠 Alta</option>
+                                    <option value="@PrioridadeTarefa.Media">🟡 Média</option>
+                                    <option value="@PrioridadeTarefa.Baixa">🟢 Baixa</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Categoria</label>
+                                <select class="form-select" @onchange="FiltrarPorCategoria">
+                                    <option value="">Todas as categorias</option>
+                                    @foreach (var categoria in GetCategorias())
+                                    {
+                                        <option value="@categoria">@categoria</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Ordenar por</label>
+                                <select class="form-select" @onchange="OrdenarTarefas">
+                                    <option value="conclusao">Data de Conclusão</option>
+                                    <option value="prioridade">Prioridade</option>
+                                    <option value="titulo">Título</option>
+                                    <option value="categoria">Categoria</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Tarefas Concluídas -->
+        <div class="row">
+            @foreach (var tarefa in tarefasFiltradas)
+            {
+                <div class="col-lg-6 mb-4">
+                    <div class="card border-success shadow-sm h-100">
+                        <div class="card-header bg-success text-white">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    @tarefa.Titulo
+                                </h6>
+                                <span class="badge bg-@GetPrioridadeColor(tarefa.Prioridade)">
+                                    @GetPrioridadeIcon(tarefa.Prioridade) @tarefa.PrioridadeDescricao
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text text-muted mb-3">
+                                @(tarefa.Descricao.Length > 100 ? tarefa.Descricao.Substring(0, 100) + "..." : tarefa.Descricao)
+                            </p>
+                            
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Concluída em</small>
+                                    <strong class="text-success">
+                                        <i class="fas fa-calendar-check me-1"></i>
+                                        @tarefa.UpdatedAt?.ToString("dd/MM/yyyy")
+                                    </strong>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Tempo para conclusão</small>
+                                    <strong class="text-info">
+                                        <i class="fas fa-clock me-1"></i>
+                                        @GetTempoConclusao(tarefa) dias
+                                    </strong>
+                                </div>
+                            </div>
+
+                            @if (tarefa.DataVencimento.HasValue)
+                            {
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <small class="text-muted d-block">Status do prazo</small>
+                                        @if (tarefa.UpdatedAt <= tarefa.DataVencimento)
+                                        {
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check me-1"></i>Concluída no prazo
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>Concluída com atraso
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(tarefa.Categoria))
+                            {
+                                <div class="mb-3">
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-tag me-1"></i>@tarefa.Categoria
+                                    </span>
+                                </div>
+                            }
+
+                            <div class="d-flex gap-2">
+                                <a href="/tarefas/@tarefa.Id" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-eye me-1"></i>Ver Detalhes
+                                </a>
+                                <button class="btn btn-outline-primary btn-sm" @onclick="() => CriarTarefaSimilar(tarefa)">
+                                    <i class="fas fa-copy me-1"></i>Criar Similar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar-plus me-1"></i>
+                                Criada em @tarefa.CreatedAt.ToString("dd/MM/yyyy") • 
+                                <i class="fas fa-check-circle me-1 text-success"></i>
+                                Concluída em @tarefa.UpdatedAt?.ToString("dd/MM/yyyy")
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Resumo de Produtividade -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-chart-line me-2 text-primary"></i>
+                            Resumo de Produtividade
+                        </h5>
+                        <div class="row text-center">
+                            <div class="col-md-2">
+                                <div class="p-2">
+                                    <h6 class="text-muted small">TOTAL</h6>
+                                    <strong class="h4 text-success">@tarefas.Count</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="p-2">
+                                    <h6 class="text-muted small">ESTA SEMANA</h6>
+                                    <strong class="h4 text-info">@GetTarefasEstaSemana()</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="p-2">
+                                    <h6 class="text-muted small">ESTE MÊS</h6>
+                                    <strong class="h4 text-primary">@GetTarefasEsteMes()</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="p-2">
+                                    <h6 class="text-muted small">NO PRAZO</h6>
+                                    <strong class="h4 text-success">@GetTarefasNoPrazo()</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="p-2">
+                                    <h6 class="text-muted small">COM ATRASO</h6>
+                                    <strong class="h4 text-warning">@GetTarefasComAtraso()</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="p-2">
+                                    <h6 class="text-muted small">TEMPO MÉDIO</h6>
+                                    <strong class="h4 text-secondary">@GetTempoMedioConclusao()d</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<TarefaDto>? tarefas;
+    private List<TarefaDto> tarefasFiltradas = new();
+    private string errorMessage = string.Empty;
+    private bool isLoading = true;
+    private string filtroCategoria = string.Empty;
+    private string filtroPeriodo = string.Empty;
+    private PrioridadeTarefa? filtroPrioridade = null;
+    private string ordenacao = "conclusao";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await AuthService.IsAuthenticatedAsync())
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadTarefas();
+    }
+
+    private async Task LoadTarefas()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await TarefaService.GetConcluidasAsync();
+            if (result.Success && result.Data != null)
+            {
+                tarefas = result.Data.ToList();
+                AplicarFiltros();
+            }
+            else
+            {
+                errorMessage = result.Message ?? "Erro ao carregar tarefas concluídas.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro inesperado: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void FiltrarPorPeriodo(ChangeEventArgs e)
+    {
+        filtroPeriodo = e.Value?.ToString() ?? string.Empty;
+        AplicarFiltros();
+    }
+
+    private void FiltrarPorPrioridade(ChangeEventArgs e)
+    {
+        var valor = e.Value?.ToString();
+        if (string.IsNullOrEmpty(valor))
+        {
+            filtroPrioridade = null;
+        }
+        else if (Enum.TryParse<PrioridadeTarefa>(valor, out var prioridade))
+        {
+            filtroPrioridade = prioridade;
+        }
+        AplicarFiltros();
+    }
+
+    private void FiltrarPorCategoria(ChangeEventArgs e)
+    {
+        filtroCategoria = e.Value?.ToString() ?? string.Empty;
+        AplicarFiltros();
+    }
+
+    private void OrdenarTarefas(ChangeEventArgs e)
+    {
+        ordenacao = e.Value?.ToString() ?? "conclusao";
+        AplicarFiltros();
+    }
+
+    private void AplicarFiltros()
+    {
+        if (tarefas == null) return;
+
+        tarefasFiltradas = tarefas.AsEnumerable().ToList();
+
+        // Filtro por período
+        if (!string.IsNullOrEmpty(filtroPeriodo))
+        {
+            var hoje = DateTime.Today;
+            tarefasFiltradas = filtroPeriodo switch
+            {
+                "hoje" => tarefasFiltradas.Where(t => t.UpdatedAt?.Date == hoje).ToList(),
+                "semana" => tarefasFiltradas.Where(t => t.UpdatedAt >= hoje.AddDays(-(int)hoje.DayOfWeek)).ToList(),
+                "mes" => tarefasFiltradas.Where(t => t.UpdatedAt >= new DateTime(hoje.Year, hoje.Month, 1)).ToList(),
+                "trimestre" => tarefasFiltradas.Where(t => t.UpdatedAt >= hoje.AddMonths(-3)).ToList(),
+                _ => tarefasFiltradas
+            };
+        }
+
+        // Filtro por prioridade
+        if (filtroPrioridade.HasValue)
+        {
+            tarefasFiltradas = tarefasFiltradas.Where(t => t.Prioridade == filtroPrioridade.Value).ToList();
+        }
+
+        // Filtro por categoria
+        if (!string.IsNullOrEmpty(filtroCategoria))
+        {
+            tarefasFiltradas = tarefasFiltradas.Where(t => t.Categoria == filtroCategoria).ToList();
+        }
+
+        // Ordenação
+        tarefasFiltradas = ordenacao switch
+        {
+            "prioridade" => tarefasFiltradas.OrderByDescending(t => t.Prioridade).ToList(),
+            "titulo" => tarefasFiltradas.OrderBy(t => t.Titulo).ToList(),
+            "categoria" => tarefasFiltradas.OrderBy(t => t.Categoria).ToList(),
+            _ => tarefasFiltradas.OrderByDescending(t => t.UpdatedAt).ToList()
+        };
+
+        tarefasFiltradas = tarefasFiltradas.ToList();
+        StateHasChanged();
+    }
+
+    private async Task CriarTarefaSimilar(TarefaDto tarefa)
+    {
+        // Navegar para nova tarefa com dados pré-preenchidos
+        Navigation.NavigateTo($"/tarefas/nova?template={tarefa.Id}");
+    }
+
+    private string GetPrioridadeColor(PrioridadeTarefa prioridade)
+    {
+        return prioridade switch
+        {
+            PrioridadeTarefa.Baixa => "secondary",
+            PrioridadeTarefa.Media => "primary",
+            PrioridadeTarefa.Alta => "warning",
+            PrioridadeTarefa.Critica => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetPrioridadeIcon(PrioridadeTarefa prioridade)
+    {
+        return prioridade switch
+        {
+            PrioridadeTarefa.Baixa => "🟢",
+            PrioridadeTarefa.Media => "🟡",
+            PrioridadeTarefa.Alta => "🟠",
+            PrioridadeTarefa.Critica => "🔴",
+            _ => "⚪"
+        };
+    }
+
+    private int GetTempoConclusao(TarefaDto tarefa)
+    {
+        if (!tarefa.UpdatedAt.HasValue) return 0;
+        return (tarefa.UpdatedAt.Value.Date - tarefa.CreatedAt.Date).Days;
+    }
+
+    private int GetTarefasEstaSemana()
+    {
+        if (tarefas == null) return 0;
+        var inicioSemana = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek);
+        return tarefas.Count(t => t.UpdatedAt >= inicioSemana);
+    }
+
+    private int GetTarefasEsteMes()
+    {
+        if (tarefas == null) return 0;
+        var inicioMes = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        return tarefas.Count(t => t.UpdatedAt >= inicioMes);
+    }
+
+    private int GetTarefasAltaPrioridade()
+    {
+        if (tarefas == null) return 0;
+        return tarefas.Count(t => t.Prioridade == PrioridadeTarefa.Alta || t.Prioridade == PrioridadeTarefa.Critica);
+    }
+
+    private int GetTarefasNoPrazo()
+    {
+        if (tarefas == null) return 0;
+        return tarefas.Count(t => t.DataVencimento.HasValue && t.UpdatedAt <= t.DataVencimento);
+    }
+
+    private int GetTarefasComAtraso()
+    {
+        if (tarefas == null) return 0;
+        return tarefas.Count(t => t.DataVencimento.HasValue && t.UpdatedAt > t.DataVencimento);
+    }
+
+    private int GetTempoMedioConclusao()
+    {
+        if (tarefas == null || !tarefas.Any()) return 0;
+        var tempos = tarefas.Where(t => t.UpdatedAt.HasValue)
+                           .Select(t => (t.UpdatedAt!.Value.Date - t.CreatedAt.Date).Days);
+        return tempos.Any() ? (int)tempos.Average() : 0;
+    }
+
+    private List<string> GetCategorias()
+    {
+        if (tarefas == null) return new List<string>();
+        return tarefas.Where(t => !string.IsNullOrEmpty(t.Categoria))
+                     .Select(t => t.Categoria!)
+                     .Distinct()
+                     .OrderBy(c => c)
+                     .ToList();
+    }
+}
+

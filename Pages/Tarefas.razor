@@ -1,0 +1,355 @@
+@page "/tarefas"
+@inject ITarefaService TarefaService
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Tarefas - IbnelveApi</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Gestão de Tarefas</h1>
+    <a href="/tarefas/nova" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>Nova Tarefa
+    </a>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+        <p class="mt-2 text-muted">Carregando tarefas...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else
+{
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Buscar</label>
+                    <input @bind="searchTerm" @onkeypress="OnSearchKeyPress" class="form-control" placeholder="Título ou descrição..." />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select @bind="filtroStatus" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="1">Pendente</option>
+                        <option value="2">Em Andamento</option>
+                        <option value="3">Concluída</option>
+                        <option value="4">Cancelada</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Prioridade</label>
+                    <select @bind="filtroPrioridade" class="form-select">
+                        <option value="">Todas</option>
+                        <option value="1">Baixa</option>
+                        <option value="2">Média</option>
+                        <option value="3">Alta</option>
+                        <option value="4">Crítica</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Categoria</label>
+                    <input @bind="filtroCategoria" class="form-control" placeholder="Categoria..." />
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="btn btn-primary me-2" @onclick="ApplyFilters">
+                        <i class="fas fa-filter me-1"></i>Filtrar
+                    </button>
+                    <button class="btn btn-secondary" @onclick="ClearFilters">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (tarefas?.Any() == true)
+    {
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-tasks me-2"></i>
+                    Tarefas (@tarefas.Count())
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Título</th>
+                                <th>Status</th>
+                                <th>Prioridade</th>
+                                <th>Categoria</th>
+                                <th>Vencimento</th>
+                                <th width="150">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var tarefa in tarefas)
+                            {
+                                <tr class="@(tarefa.EstaVencida ? "table-warning" : "")">
+                                    <td>
+                                        <strong>@tarefa.Titulo</strong>
+                                        <br />
+                                        <small class="text-muted">@tarefa.Descricao.Substring(0, Math.Min(50, tarefa.Descricao.Length))@(tarefa.Descricao.Length > 50 ? "..." : "")</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-@GetStatusColor(tarefa.Status)">@tarefa.StatusDescricao</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-@GetPrioridadeColor(tarefa.Prioridade)">@tarefa.PrioridadeDescricao</span>
+                                    </td>
+                                    <td>@tarefa.Categoria</td>
+                                    <td>
+                                        @if (tarefa.DataVencimento.HasValue)
+                                        {
+                                            <span class="@(tarefa.EstaVencida ? "text-danger fw-bold" : "")">
+                                                @tarefa.DataVencimento.Value.ToString("dd/MM/yyyy")
+                                            </span>
+                                            @if (tarefa.EstaVencida)
+                                            {
+                                                <i class="fas fa-exclamation-triangle text-warning ms-1"></i>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            @if (tarefa.Status != StatusTarefa.Concluida)
+                                            {
+                                                <button class="btn btn-outline-success" @onclick="() => MarcarConcluida(tarefa.Id)" title="Concluir">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                            }
+                                            <button class="btn btn-outline-primary" @onclick="() => ViewTarefa(tarefa.Id)" title="Visualizar">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-warning" @onclick="() => EditTarefa(tarefa.Id)" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" @onclick="() => DeleteTarefa(tarefa.Id)" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
+            <h4>Nenhuma tarefa encontrada</h4>
+            <p class="text-muted">Comece criando uma nova tarefa.</p>
+            <a href="/tarefas/nova" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Criar Primeira Tarefa
+            </a>
+        </div>
+    }
+}
+
+@code {
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private string searchTerm = string.Empty;
+    private string filtroStatus = string.Empty;
+    private string filtroPrioridade = string.Empty;
+    private string filtroCategoria = string.Empty;
+    private IEnumerable<TarefaDto>? tarefas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await AuthService.IsAuthenticatedAsync())
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadTarefas();
+    }
+
+    private async Task LoadTarefas()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await TarefaService.GetAllAsync();
+            if (result.Success)
+            {
+                tarefas = result.Data;
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao carregar tarefas: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var filtro = new TarefaFiltroDto
+            {
+                SearchTerm = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm,
+                Status = string.IsNullOrWhiteSpace(filtroStatus) ? null : (StatusTarefa)int.Parse(filtroStatus),
+                Prioridade = string.IsNullOrWhiteSpace(filtroPrioridade) ? null : (PrioridadeTarefa)int.Parse(filtroPrioridade),
+                Categoria = string.IsNullOrWhiteSpace(filtroCategoria) ? null : filtroCategoria
+            };
+
+            var result = await TarefaService.GetWithFiltersAsync(filtro);
+            if (result.Success)
+            {
+                tarefas = result.Data;
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao aplicar filtros: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearFilters()
+    {
+        searchTerm = string.Empty;
+        filtroStatus = string.Empty;
+        filtroPrioridade = string.Empty;
+        filtroCategoria = string.Empty;
+        await LoadTarefas();
+    }
+
+    private async Task OnSearchKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ApplyFilters();
+        }
+    }
+
+    private async Task MarcarConcluida(int id)
+    {
+        try
+        {
+            var result = await TarefaService.MarcarComoConcluidaAsync(id);
+            if (result.Success)
+            {
+                await LoadTarefas();
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao marcar como concluída: " + ex.Message;
+        }
+    }
+
+    private void ViewTarefa(int id)
+    {
+        Navigation.NavigateTo($"/tarefas/{id}");
+    }
+
+    private void EditTarefa(int id)
+    {
+        Navigation.NavigateTo($"/tarefas/{id}/editar");
+    }
+
+    private async Task DeleteTarefa(int id)
+    {
+        if (await ConfirmDelete())
+        {
+            try
+            {
+                var result = await TarefaService.DeleteAsync(id);
+                if (result.Success)
+                {
+                    await LoadTarefas();
+                }
+                else
+                {
+                    errorMessage = result.Message;
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = "Erro ao excluir tarefa: " + ex.Message;
+            }
+        }
+    }
+
+    private async Task<bool> ConfirmDelete()
+    {
+        return true; // Implementação simples
+    }
+
+    private string GetStatusColor(StatusTarefa status)
+    {
+        return status switch
+        {
+            StatusTarefa.Pendente => "warning",
+            StatusTarefa.EmAndamento => "info",
+            StatusTarefa.Concluida => "success",
+            StatusTarefa.Cancelada => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetPrioridadeColor(PrioridadeTarefa prioridade)
+    {
+        return prioridade switch
+        {
+            PrioridadeTarefa.Baixa => "secondary",
+            PrioridadeTarefa.Media => "primary",
+            PrioridadeTarefa.Alta => "warning",
+            PrioridadeTarefa.Critica => "danger",
+            _ => "secondary"
+        };
+    }
+}
+

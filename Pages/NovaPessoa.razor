@@ -1,0 +1,410 @@
+@page "/pessoas/nova"
+@inject IPessoaService PessoaService
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Nova Pessoa - IbnelveApi</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/" class="text-decoration-none">
+                            <i class="fas fa-home me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="/pessoas" class="text-decoration-none">
+                            <i class="fas fa-users me-1"></i>Pessoas
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-user-plus me-1"></i>Nova Pessoa
+                    </li>
+                </ol>
+            </nav>
+
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-user-plus me-2 text-primary"></i>
+                        Nova Pessoa
+                    </h1>
+                    <p class="text-muted mb-0">Cadastre uma nova pessoa no sistema</p>
+                </div>
+                <a href="/pessoas" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Voltar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-circle me-2"></i>
+                        Dados da Pessoa
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            @errorMessage
+                            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            @successMessage
+                            <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+                        </div>
+                    }
+
+                    <EditForm Model="novaPessoa" OnValidSubmit="HandleSubmit">
+                        <DataAnnotationsValidator />
+                        
+                        <!-- Dados Pessoais -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2 mb-3">
+                                    <i class="fas fa-user me-2"></i>Dados Pessoais
+                                </h6>
+                            </div>
+                            
+                            <div class="col-md-8 mb-3">
+                                <label for="nome" class="form-label fw-semibold">
+                                    Nome Completo <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-user text-muted"></i>
+                                    </span>
+                                    <InputText @bind-Value="novaPessoa.Nome" class="form-control" id="nome" 
+                                               placeholder="Digite o nome completo" maxlength="200" />
+                                </div>
+                                <ValidationMessage For="@(() => novaPessoa.Nome)" class="text-danger small mt-1" />
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="cpf" class="form-label fw-semibold">
+                                    CPF <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-id-card text-muted"></i>
+                                    </span>
+                                    <InputText @bind-Value="novaPessoa.CPF" class="form-control" id="cpf" 
+                                               placeholder="000.000.000-00" maxlength="14" @oninput="FormatCPF" />
+                                </div>
+                                <ValidationMessage For="@(() => novaPessoa.CPF)" class="text-danger small mt-1" />
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="telefone" class="form-label fw-semibold">
+                                    Telefone <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-phone text-muted"></i>
+                                    </span>
+                                    <InputText @bind-Value="novaPessoa.Telefone" class="form-control" id="telefone" 
+                                               placeholder="(00) 00000-0000" maxlength="15" @oninput="FormatTelefone" />
+                                </div>
+                                <ValidationMessage For="@(() => novaPessoa.Telefone)" class="text-danger small mt-1" />
+                            </div>
+                        </div>
+
+                        <!-- Endereço -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2 mb-3">
+                                    <i class="fas fa-map-marker-alt me-2"></i>Endereço
+                                </h6>
+                            </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label for="cep" class="form-label fw-semibold">
+                                    CEP <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-mail-bulk text-muted"></i>
+                                    </span>
+                                    <InputText @bind-Value="novaPessoa.Endereco.CEP" class="form-control" id="cep" 
+                                               placeholder="00000-000" maxlength="9" @oninput="FormatCEP" @onblur="BuscarCEP" />
+                                </div>
+                                <ValidationMessage For="@(() => novaPessoa.Endereco.CEP)" class="text-danger small mt-1" />
+                            </div>
+
+                            <div class="col-md-9 mb-3">
+                                <label for="rua" class="form-label fw-semibold">
+                                    Rua/Logradouro <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-road text-muted"></i>
+                                    </span>
+                                    <InputText @bind-Value="novaPessoa.Endereco.Rua" class="form-control" id="rua" 
+                                               placeholder="Digite o endereço completo" maxlength="200" />
+                                </div>
+                                <ValidationMessage For="@(() => novaPessoa.Endereco.Rua)" class="text-danger small mt-1" />
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="bairro" class="form-label fw-semibold">
+                                    Bairro <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-building text-muted"></i>
+                                    </span>
+                                    <InputText @bind-Value="novaPessoa.Endereco.Bairro" class="form-control" id="bairro" 
+                                               placeholder="Digite o bairro" maxlength="100" />
+                                </div>
+                                <ValidationMessage For="@(() => novaPessoa.Endereco.Bairro)" class="text-danger small mt-1" />
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="cidade" class="form-label fw-semibold">
+                                    Cidade <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-city text-muted"></i>
+                                    </span>
+                                    <InputText @bind-Value="novaPessoa.Endereco.Cidade" class="form-control" id="cidade" 
+                                               placeholder="Digite a cidade" maxlength="100" />
+                                </div>
+                                <ValidationMessage For="@(() => novaPessoa.Endereco.Cidade)" class="text-danger small mt-1" />
+                            </div>
+
+                            <div class="col-md-2 mb-3">
+                                <label for="uf" class="form-label fw-semibold">
+                                    UF <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-flag text-muted"></i>
+                                    </span>
+                                    <InputSelect @bind-Value="novaPessoa.Endereco.UF" class="form-select" id="uf">
+                                        <option value="">Selecione</option>
+                                        <option value="AC">AC</option>
+                                        <option value="AL">AL</option>
+                                        <option value="AP">AP</option>
+                                        <option value="AM">AM</option>
+                                        <option value="BA">BA</option>
+                                        <option value="CE">CE</option>
+                                        <option value="DF">DF</option>
+                                        <option value="ES">ES</option>
+                                        <option value="GO">GO</option>
+                                        <option value="MA">MA</option>
+                                        <option value="MT">MT</option>
+                                        <option value="MS">MS</option>
+                                        <option value="MG">MG</option>
+                                        <option value="PA">PA</option>
+                                        <option value="PB">PB</option>
+                                        <option value="PR">PR</option>
+                                        <option value="PE">PE</option>
+                                        <option value="PI">PI</option>
+                                        <option value="RJ">RJ</option>
+                                        <option value="RN">RN</option>
+                                        <option value="RS">RS</option>
+                                        <option value="RO">RO</option>
+                                        <option value="RR">RR</option>
+                                        <option value="SC">SC</option>
+                                        <option value="SP">SP</option>
+                                        <option value="SE">SE</option>
+                                        <option value="TO">TO</option>
+                                    </InputSelect>
+                                </div>
+                                <ValidationMessage For="@(() => novaPessoa.Endereco.UF)" class="text-danger small mt-1" />
+                            </div>
+                        </div>
+
+                        <!-- Botões -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="/pessoas" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-2"></i>Cancelar
+                                    </a>
+                                    <button type="button" class="btn btn-outline-warning" @onclick="LimparFormulario">
+                                        <i class="fas fa-eraser me-2"></i>Limpar
+                                    </button>
+                                    <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                                        @if (isLoading)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                            <span>Salvando...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-save me-2"></i>
+                                            <span>Salvar Pessoa</span>
+                                        }
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private CreatePessoaDto novaPessoa = new() { Endereco = new EnderecoDto() };
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await AuthService.IsAuthenticatedAsync())
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await PessoaService.CreateAsync(novaPessoa);
+            
+            if (result.Success)
+            {
+                successMessage = "Pessoa cadastrada com sucesso!";
+                await JSRuntime.InvokeVoidAsync("scrollTo", 0, 0);
+                
+                // Aguardar um pouco para mostrar a mensagem
+                await Task.Delay(1500);
+                
+                // Redirecionar para a lista
+                Navigation.NavigateTo("/pessoas");
+            }
+            else
+            {
+                errorMessage = result.Message;
+                if (result.Errors?.Any() == true)
+                {
+                    errorMessage += " " + string.Join(", ", result.Errors);
+                }
+                await JSRuntime.InvokeVoidAsync("scrollTo", 0, 0);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro inesperado: " + ex.Message;
+            await JSRuntime.InvokeVoidAsync("scrollTo", 0, 0);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void LimparFormulario()
+    {
+        novaPessoa = new CreatePessoaDto { Endereco = new EnderecoDto() };
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        StateHasChanged();
+    }
+
+    private async Task FormatCPF(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        var numbers = new string(value.Where(char.IsDigit).ToArray());
+        
+        if (numbers.Length <= 11)
+        {
+            if (numbers.Length > 3 && numbers.Length <= 6)
+                novaPessoa.CPF = $"{numbers.Substring(0, 3)}.{numbers.Substring(3)}";
+            else if (numbers.Length > 6 && numbers.Length <= 9)
+                novaPessoa.CPF = $"{numbers.Substring(0, 3)}.{numbers.Substring(3, 3)}.{numbers.Substring(6)}";
+            else if (numbers.Length > 9)
+                novaPessoa.CPF = $"{numbers.Substring(0, 3)}.{numbers.Substring(3, 3)}.{numbers.Substring(6, 3)}-{numbers.Substring(9)}";
+            else
+                novaPessoa.CPF = numbers;
+        }
+    }
+
+    private async Task FormatTelefone(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        var numbers = new string(value.Where(char.IsDigit).ToArray());
+        
+        if (numbers.Length <= 11)
+        {
+            if (numbers.Length > 2 && numbers.Length <= 7)
+                novaPessoa.Telefone = $"({numbers.Substring(0, 2)}) {numbers.Substring(2)}";
+            else if (numbers.Length > 7)
+                novaPessoa.Telefone = $"({numbers.Substring(0, 2)}) {numbers.Substring(2, numbers.Length == 11 ? 5 : 4)}-{numbers.Substring(numbers.Length == 11 ? 7 : 6)}";
+            else if (numbers.Length > 0)
+                novaPessoa.Telefone = numbers.Length > 2 ? $"({numbers.Substring(0, 2)}) {numbers.Substring(2)}" : numbers;
+        }
+    }
+
+    private async Task FormatCEP(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        var numbers = new string(value.Where(char.IsDigit).ToArray());
+        
+        if (numbers.Length <= 8)
+        {
+            if (numbers.Length > 5)
+                novaPessoa.Endereco.CEP = $"{numbers.Substring(0, 5)}-{numbers.Substring(5)}";
+            else
+                novaPessoa.Endereco.CEP = numbers;
+        }
+    }
+
+    private async Task BuscarCEP()
+    {
+        var cep = new string(novaPessoa.Endereco.CEP.Where(char.IsDigit).ToArray());
+        
+        if (cep.Length == 8)
+        {
+            try
+            {
+                // Aqui você pode implementar a busca de CEP via API
+                // Por exemplo, usando a API do ViaCEP
+                // var response = await HttpClient.GetFromJsonAsync<ViaCepResponse>($"https://viacep.com.br/ws/{cep}/json/");
+                // if (response != null && !response.Erro)
+                // {
+                //     novaPessoa.Endereco.Rua = response.Logradouro;
+                //     novaPessoa.Endereco.Bairro = response.Bairro;
+                //     novaPessoa.Endereco.Cidade = response.Localidade;
+                //     novaPessoa.Endereco.UF = response.Uf;
+                //     StateHasChanged();
+                // }
+            }
+            catch
+            {
+                // Ignorar erros de busca de CEP
+            }
+        }
+    }
+}
+

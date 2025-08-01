@@ -1,0 +1,414 @@
+@page "/tarefas/nova"
+@inject ITarefaService TarefaService
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Nova Tarefa - IbnelveApi</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/" class="text-decoration-none">
+                            <i class="fas fa-home me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="/tarefas" class="text-decoration-none">
+                            <i class="fas fa-tasks me-1"></i>Tarefas
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-plus me-1"></i>Nova Tarefa
+                    </li>
+                </ol>
+            </nav>
+
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-plus me-2 text-primary"></i>
+                        Nova Tarefa
+                    </h1>
+                    <p class="text-muted mb-0">Crie uma nova tarefa no sistema</p>
+                </div>
+                <a href="/tarefas" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Voltar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-list me-2"></i>
+                        Dados da Tarefa
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            @errorMessage
+                            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            @successMessage
+                            <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+                        </div>
+                    }
+
+                    <EditForm Model="novaTarefa" OnValidSubmit="HandleSubmit">
+                        <DataAnnotationsValidator />
+                        
+                        <!-- Informações Básicas -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2 mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>Informações Básicas
+                                </h6>
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                <label for="titulo" class="form-label fw-semibold">
+                                    Título <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-heading text-muted"></i>
+                                    </span>
+                                    <InputText @bind-Value="novaTarefa.Titulo" class="form-control" id="titulo" 
+                                               placeholder="Digite um título claro e objetivo" maxlength="200" />
+                                </div>
+                                <ValidationMessage For="@(() => novaTarefa.Titulo)" class="text-danger small mt-1" />
+                                <div class="form-text">
+                                    <small class="text-muted">
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        Dica: Use um título descritivo que facilite a identificação da tarefa
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="col-12 mb-3">
+                                <label for="descricao" class="form-label fw-semibold">
+                                    Descrição <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text align-items-start pt-2">
+                                        <i class="fas fa-align-left text-muted"></i>
+                                    </span>
+                                    <InputTextArea @bind-Value="novaTarefa.Descricao" class="form-control" id="descricao" 
+                                                   placeholder="Descreva detalhadamente o que deve ser feito..." 
+                                                   rows="4" maxlength="1000" />
+                                </div>
+                                <ValidationMessage For="@(() => novaTarefa.Descricao)" class="text-danger small mt-1" />
+                                <div class="form-text">
+                                    <small class="text-muted">
+                                        Caracteres restantes: @(1000 - (novaTarefa.Descricao?.Length ?? 0))
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configurações -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2 mb-3">
+                                    <i class="fas fa-cogs me-2"></i>Configurações
+                                </h6>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="prioridade" class="form-label fw-semibold">
+                                    Prioridade <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-exclamation-circle text-muted"></i>
+                                    </span>
+                                    <InputSelect @bind-Value="novaTarefa.Prioridade" class="form-select" id="prioridade">
+                                        <option value="@PrioridadeTarefa.Baixa">
+                                            🟢 Baixa - Pode ser feita quando houver tempo
+                                        </option>
+                                        <option value="@PrioridadeTarefa.Media">
+                                            🟡 Média - Prioridade normal
+                                        </option>
+                                        <option value="@PrioridadeTarefa.Alta">
+                                            🟠 Alta - Importante, deve ser priorizada
+                                        </option>
+                                        <option value="@PrioridadeTarefa.Critica">
+                                            🔴 Crítica - Urgente, requer atenção imediata
+                                        </option>
+                                    </InputSelect>
+                                </div>
+                                <ValidationMessage For="@(() => novaTarefa.Prioridade)" class="text-danger small mt-1" />
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="categoria" class="form-label fw-semibold">
+                                    Categoria
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-tag text-muted"></i>
+                                    </span>
+                                    <InputText @bind-Value="novaTarefa.Categoria" class="form-control" id="categoria" 
+                                               placeholder="Ex: Desenvolvimento, Reunião, Documentação..." 
+                                               maxlength="100" list="categorias" />
+                                </div>
+                                <ValidationMessage For="@(() => novaTarefa.Categoria)" class="text-danger small mt-1" />
+                                
+                                <!-- Sugestões de categorias -->
+                                <datalist id="categorias">
+                                    <option value="Desenvolvimento"></option>
+                                    <option value="Documentação"></option>
+                                    <option value="Reunião"></option>
+                                    <option value="Testes"></option>
+                                    <option value="Bugfix"></option>
+                                    <option value="Planejamento"></option>
+                                    <option value="Pesquisa"></option>
+                                    <option value="Treinamento"></option>
+                                    <option value="Manutenção"></option>
+                                    <option value="Suporte"></option>
+                                </datalist>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="dataVencimento" class="form-label fw-semibold">
+                                    Data de Vencimento
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-calendar-alt text-muted"></i>
+                                    </span>
+                                    <InputDate @bind-Value="novaTarefa.DataVencimento" class="form-control" id="dataVencimento" 
+                                               min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                                </div>
+                                <ValidationMessage For="@(() => novaTarefa.DataVencimento)" class="text-danger small mt-1" />
+                                <div class="form-text">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Deixe em branco se não houver prazo específico
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Ações Rápidas</label>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-outline-info btn-sm" @onclick="DefinirPrazoUrgente">
+                                        <i class="fas fa-bolt me-1"></i>Urgente (3 dias)
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning btn-sm" @onclick="DefinirPrazoSemana">
+                                        <i class="fas fa-calendar-week me-1"></i>1 Semana
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="DefinirPrazoMes">
+                                        <i class="fas fa-calendar me-1"></i>1 Mês
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Preview da Tarefa -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2 mb-3">
+                                    <i class="fas fa-eye me-2"></i>Preview da Tarefa
+                                </h6>
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="card-title mb-1">
+                                                @(string.IsNullOrEmpty(novaTarefa.Titulo) ? "Título da tarefa aparecerá aqui" : novaTarefa.Titulo)
+                                            </h6>
+                                            <span class="badge bg-@GetPrioridadeColor(novaTarefa.Prioridade)">
+                                                @GetPrioridadeText(novaTarefa.Prioridade)
+                                            </span>
+                                        </div>
+                                        <p class="card-text text-muted small mb-2">
+                                            @(string.IsNullOrEmpty(novaTarefa.Descricao) ? "Descrição da tarefa aparecerá aqui" : novaTarefa.Descricao)
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">
+                                                @if (!string.IsNullOrEmpty(novaTarefa.Categoria))
+                                                {
+                                                    <i class="fas fa-tag me-1"></i>@novaTarefa.Categoria
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-tag me-1">Sem categoria</i>
+                                                }
+                                            </small>
+                                            <small class="text-muted">
+                                                @if (novaTarefa.DataVencimento.HasValue)
+                                                {
+                                                    <i class="fas fa-calendar me-1"></i>@novaTarefa.DataVencimento.Value.ToString("dd/MM/yyyy")
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-calendar me-1">Sem prazo</i>
+                                                }
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botões -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="/tarefas" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-2"></i>Cancelar
+                                    </a>
+                                    <button type="button" class="btn btn-outline-warning" @onclick="LimparFormulario">
+                                        <i class="fas fa-eraser me-2"></i>Limpar
+                                    </button>
+                                    <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                                        @if (isLoading)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                            <span>Criando...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-save me-2"></i>
+                                            <span>Criar Tarefa</span>
+                                        }
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private CreateTarefaDto novaTarefa = new() { Prioridade = PrioridadeTarefa.Media };
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await AuthService.IsAuthenticatedAsync())
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await TarefaService.CreateAsync(novaTarefa);
+            
+            if (result.Success)
+            {
+                successMessage = "Tarefa criada com sucesso!";
+                await JSRuntime.InvokeVoidAsync("scrollTo", 0, 0);
+                
+                // Aguardar um pouco para mostrar a mensagem
+                await Task.Delay(1500);
+                
+                // Redirecionar para a lista
+                Navigation.NavigateTo("/tarefas");
+            }
+            else
+            {
+                errorMessage = result.Message;
+                if (result.Errors?.Any() == true)
+                {
+                    errorMessage += " " + string.Join(", ", result.Errors);
+                }
+                await JSRuntime.InvokeVoidAsync("scrollTo", 0, 0);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro inesperado: " + ex.Message;
+            await JSRuntime.InvokeVoidAsync("scrollTo", 0, 0);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void LimparFormulario()
+    {
+        novaTarefa = new CreateTarefaDto { Prioridade = PrioridadeTarefa.Media };
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        StateHasChanged();
+    }
+
+    private void DefinirPrazoUrgente()
+    {
+        novaTarefa.DataVencimento = DateTime.Today.AddDays(3);
+        novaTarefa.Prioridade = PrioridadeTarefa.Alta;
+        StateHasChanged();
+    }
+
+    private void DefinirPrazoSemana()
+    {
+        novaTarefa.DataVencimento = DateTime.Today.AddDays(7);
+        StateHasChanged();
+    }
+
+    private void DefinirPrazoMes()
+    {
+        novaTarefa.DataVencimento = DateTime.Today.AddDays(30);
+        StateHasChanged();
+    }
+
+    private string GetPrioridadeColor(PrioridadeTarefa prioridade)
+    {
+        return prioridade switch
+        {
+            PrioridadeTarefa.Baixa => "secondary",
+            PrioridadeTarefa.Media => "primary",
+            PrioridadeTarefa.Alta => "warning",
+            PrioridadeTarefa.Critica => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetPrioridadeText(PrioridadeTarefa prioridade)
+    {
+        return prioridade switch
+        {
+            PrioridadeTarefa.Baixa => "Baixa",
+            PrioridadeTarefa.Media => "Média",
+            PrioridadeTarefa.Alta => "Alta",
+            PrioridadeTarefa.Critica => "Crítica",
+            _ => "Média"
+        };
+    }
+}
+

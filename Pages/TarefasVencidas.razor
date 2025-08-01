@@ -1,0 +1,528 @@
+@page "/tarefas/vencidas"
+@inject ITarefaService TarefaService
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Tarefas Vencidas - IbnelveApi</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/" class="text-decoration-none">
+                            <i class="fas fa-home me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="/tarefas" class="text-decoration-none">
+                            <i class="fas fa-tasks me-1"></i>Tarefas
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Vencidas
+                    </li>
+                </ol>
+            </nav>
+
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-exclamation-triangle me-2 text-danger"></i>
+                        Tarefas Vencidas
+                    </h1>
+                    <p class="text-muted mb-0">
+                        @if (tarefas != null)
+                        {
+                            <span>@tarefas.Count tarefas vencidas encontradas</span>
+                        }
+                        else
+                        {
+                            <span>Carregando tarefas vencidas...</span>
+                        }
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/tarefas/nova" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Nova Tarefa
+                    </a>
+                    <a href="/tarefas" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Todas as Tarefas
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <div class="spinner-border text-danger mb-3" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                        <h5>Carregando tarefas vencidas...</h5>
+                        <p class="text-muted">Verificando prazos e buscando tarefas em atraso.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="alert alert-danger" role="alert">
+                    <h4 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Erro ao carregar
+                    </h4>
+                    <p>@errorMessage</p>
+                    <hr>
+                    <button class="btn btn-outline-danger" @onclick="LoadTarefas">
+                        <i class="fas fa-sync-alt me-2"></i>Tentar novamente
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else if (tarefas?.Count == 0)
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card border-success">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                        <h4 class="text-success">Parabéns! Nenhuma tarefa vencida!</h4>
+                        <p class="text-muted mb-4">
+                            Você está em dia com todas as suas tarefas. Continue assim!
+                        </p>
+                        <div class="d-flex gap-2 justify-content-center">
+                            <a href="/tarefas" class="btn btn-outline-primary">
+                                <i class="fas fa-tasks me-2"></i>Ver Todas as Tarefas
+                            </a>
+                            <a href="/tarefas/nova" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Criar Nova Tarefa
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Estatísticas -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-danger text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                        <h4>@tarefas.Count</h4>
+                        <small>Tarefas Vencidas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-dark">
+                    <div class="card-body text-center">
+                        <i class="fas fa-fire fa-2x mb-2"></i>
+                        <h4>@tarefas.Count(t => t.Prioridade == PrioridadeTarefa.Critica || t.Prioridade == PrioridadeTarefa.Alta)</h4>
+                        <small>Alta/Crítica</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-calendar-times fa-2x mb-2"></i>
+                        <h4>@GetDiasVencidoMedio()</h4>
+                        <small>Dias em Atraso (Média)</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-secondary text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-tags fa-2x mb-2"></i>
+                        <h4>@GetCategoriasUnicas()</h4>
+                        <small>Categorias Afetadas</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerta de Ação -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-danger border-danger" role="alert">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                        <div class="flex-grow-1">
+                            <h5 class="alert-heading mb-1">Atenção! Tarefas em Atraso</h5>
+                            <p class="mb-2">
+                                Você tem <strong>@tarefas.Count tarefas vencidas</strong> que precisam de atenção imediata.
+                                @if (tarefas.Any(t => t.Prioridade == PrioridadeTarefa.Critica))
+                                {
+                                    <span class="fw-bold">Algumas são de prioridade crítica!</span>
+                                }
+                            </p>
+                        </div>
+                        <div>
+                            <button class="btn btn-light btn-sm" @onclick="MarcarTodasComoConcluidas">
+                                <i class="fas fa-check-double me-1"></i>Marcar Todas como Concluídas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label">Filtrar por Prioridade</label>
+                                <select class="form-select" @onchange="FiltrarPorPrioridade">
+                                    <option value="">Todas as prioridades</option>
+                                    <option value="@PrioridadeTarefa.Critica">🔴 Crítica</option>
+                                    <option value="@PrioridadeTarefa.Alta">🟠 Alta</option>
+                                    <option value="@PrioridadeTarefa.Media">🟡 Média</option>
+                                    <option value="@PrioridadeTarefa.Baixa">🟢 Baixa</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Filtrar por Categoria</label>
+                                <select class="form-select" @onchange="FiltrarPorCategoria">
+                                    <option value="">Todas as categorias</option>
+                                    @foreach (var categoria in GetCategorias())
+                                    {
+                                        <option value="@categoria">@categoria</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Ordenar por</label>
+                                <select class="form-select" @onchange="OrdenarTarefas">
+                                    <option value="vencimento">Data de Vencimento</option>
+                                    <option value="prioridade">Prioridade</option>
+                                    <option value="titulo">Título</option>
+                                    <option value="categoria">Categoria</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Tarefas Vencidas -->
+        <div class="row">
+            @foreach (var tarefa in tarefasFiltradas)
+            {
+                <div class="col-lg-6 mb-4">
+                    <div class="card border-danger shadow-sm h-100">
+                        <div class="card-header bg-danger text-white">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    @tarefa.Titulo
+                                </h6>
+                                <span class="badge bg-@GetPrioridadeColor(tarefa.Prioridade)">
+                                    @GetPrioridadeIcon(tarefa.Prioridade) @tarefa.PrioridadeDescricao
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text text-muted mb-3">
+                                @(tarefa.Descricao.Length > 100 ? tarefa.Descricao.Substring(0, 100) + "..." : tarefa.Descricao)
+                            </p>
+                            
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Vencimento</small>
+                                    <strong class="text-danger">
+                                        <i class="fas fa-calendar-times me-1"></i>
+                                        @tarefa.DataVencimento?.ToString("dd/MM/yyyy")
+                                    </strong>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Dias em atraso</small>
+                                    <strong class="text-danger">
+                                        <i class="fas fa-clock me-1"></i>
+                                        @GetDiasVencido(tarefa.DataVencimento) dias
+                                    </strong>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(tarefa.Categoria))
+                            {
+                                <div class="mb-3">
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-tag me-1"></i>@tarefa.Categoria
+                                    </span>
+                                </div>
+                            }
+
+                            <div class="d-flex gap-2">
+                                <a href="/tarefas/@tarefa.Id" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-eye me-1"></i>Ver
+                                </a>
+                                <a href="/tarefas/@tarefa.Id/editar" class="btn btn-outline-warning btn-sm">
+                                    <i class="fas fa-edit me-1"></i>Editar
+                                </a>
+                                <button class="btn btn-success btn-sm" @onclick="() => MarcarComoConcluida(tarefa.Id)">
+                                    <i class="fas fa-check me-1"></i>Concluir
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar-plus me-1"></i>
+                                Criada em @tarefa.CreatedAt.ToString("dd/MM/yyyy")
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Paginação (se necessário) -->
+        @if (tarefas.Count > 10)
+        {
+            <div class="row">
+                <div class="col-12">
+                    <nav aria-label="Navegação de páginas">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item">
+                                <a class="page-link" href="#" aria-label="Anterior">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                            <li class="page-item"><a class="page-link" href="#">2</a></li>
+                            <li class="page-item"><a class="page-link" href="#">3</a></li>
+                            <li class="page-item">
+                                <a class="page-link" href="#" aria-label="Próximo">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<TarefaDto>? tarefas;
+    private List<TarefaDto> tarefasFiltradas = new();
+    private string errorMessage = string.Empty;
+    private bool isLoading = true;
+    private string filtroCategoria = string.Empty;
+    private PrioridadeTarefa? filtroPrioridade = null;
+    private string ordenacao = "vencimento";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await AuthService.IsAuthenticatedAsync())
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadTarefas();
+    }
+
+    private async Task LoadTarefas()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await TarefaService.GetVencidasAsync();
+            if (result.Success && result.Data != null)
+            {
+                tarefas = result.Data.ToList();
+                AplicarFiltros();
+            }
+            else
+            {
+                errorMessage = result.Message ?? "Erro ao carregar tarefas vencidas.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro inesperado: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task MarcarComoConcluida(int tarefaId)
+    {
+        try
+        {
+            var result = await TarefaService.MarcarComoConcluidaAsync(tarefaId);
+            if (result.Success)
+            {
+                await LoadTarefas(); // Recarregar lista
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao marcar como concluída: " + ex.Message;
+        }
+    }
+
+    private async Task MarcarTodasComoConcluidas()
+    {
+        if (tarefas == null) return;
+
+        try
+        {
+            foreach (var tarefa in tarefas)
+            {
+                await TarefaService.MarcarComoConcluidaAsync(tarefa.Id);
+            }
+            await LoadTarefas(); // Recarregar lista
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao marcar todas como concluídas: " + ex.Message;
+        }
+    }
+
+    private void FiltrarPorPrioridade(ChangeEventArgs e)
+    {
+        var valor = e.Value?.ToString();
+        if (string.IsNullOrEmpty(valor))
+        {
+            filtroPrioridade = null;
+        }
+        else if (Enum.TryParse<PrioridadeTarefa>(valor, out var prioridade))
+        {
+            filtroPrioridade = prioridade;
+        }
+        AplicarFiltros();
+    }
+
+    private void FiltrarPorCategoria(ChangeEventArgs e)
+    {
+        filtroCategoria = e.Value?.ToString() ?? string.Empty;
+        AplicarFiltros();
+    }
+
+    private void OrdenarTarefas(ChangeEventArgs e)
+    {
+        ordenacao = e.Value?.ToString() ?? "vencimento";
+        AplicarFiltros();
+    }
+
+    private void AplicarFiltros()
+    {
+        if (tarefas == null) return;
+
+        tarefasFiltradas = tarefas.AsEnumerable().ToList();
+
+        // Filtro por prioridade
+        if (filtroPrioridade.HasValue)
+        {
+            tarefasFiltradas = tarefasFiltradas.Where(t => t.Prioridade == filtroPrioridade.Value).ToList();
+        }
+
+        // Filtro por categoria
+        if (!string.IsNullOrEmpty(filtroCategoria))
+        {
+            tarefasFiltradas = tarefasFiltradas.Where(t => t.Categoria == filtroCategoria).ToList();
+        }
+
+        // Ordenação
+        tarefasFiltradas = ordenacao switch
+        {
+            "prioridade" => tarefasFiltradas.OrderByDescending(t => t.Prioridade).ToList(),
+            "titulo" => tarefasFiltradas.OrderBy(t => t.Titulo).ToList(),
+            "categoria" => tarefasFiltradas.OrderBy(t => t.Categoria).ToList(),
+            _ => tarefasFiltradas.OrderBy(t => t.DataVencimento).ToList()
+        };
+
+        tarefasFiltradas = tarefasFiltradas.ToList();
+        StateHasChanged();
+    }
+
+    private string GetPrioridadeColor(PrioridadeTarefa prioridade)
+    {
+        return prioridade switch
+        {
+            PrioridadeTarefa.Baixa => "secondary",
+            PrioridadeTarefa.Media => "primary",
+            PrioridadeTarefa.Alta => "warning",
+            PrioridadeTarefa.Critica => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetPrioridadeIcon(PrioridadeTarefa prioridade)
+    {
+        return prioridade switch
+        {
+            PrioridadeTarefa.Baixa => "🟢",
+            PrioridadeTarefa.Media => "🟡",
+            PrioridadeTarefa.Alta => "🟠",
+            PrioridadeTarefa.Critica => "🔴",
+            _ => "⚪"
+        };
+    }
+
+    private int GetDiasVencido(DateTime? dataVencimento)
+    {
+        if (!dataVencimento.HasValue) return 0;
+        return Math.Max(0, (DateTime.Today - dataVencimento.Value.Date).Days);
+    }
+
+    private int GetDiasVencidoMedio()
+    {
+        if (tarefas == null || !tarefas.Any()) return 0;
+        var diasVencidos = tarefas.Where(t => t.DataVencimento.HasValue)
+                                 .Select(t => GetDiasVencido(t.DataVencimento))
+                                 .Where(d => d > 0);
+        return diasVencidos.Any() ? (int)diasVencidos.Average() : 0;
+    }
+
+    private int GetCategoriasUnicas()
+    {
+        if (tarefas == null) return 0;
+        return tarefas.Where(t => !string.IsNullOrEmpty(t.Categoria))
+                     .Select(t => t.Categoria)
+                     .Distinct()
+                     .Count();
+    }
+
+    private List<string> GetCategorias()
+    {
+        if (tarefas == null) return new List<string>();
+        return tarefas.Where(t => !string.IsNullOrEmpty(t.Categoria))
+                     .Select(t => t.Categoria!)
+                     .Distinct()
+                     .OrderBy(c => c)
+                     .ToList();
+    }
+}
+

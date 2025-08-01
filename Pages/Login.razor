@@ -1,0 +1,134 @@
+@page "/login"
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Login - IbnelveApi</PageTitle>
+
+<div class="container-fluid vh-100">
+    <div class="row h-100">
+        <div class="col-md-6 d-none d-md-flex align-items-center justify-content-center bg-primary">
+            <div class="text-center text-white">
+                <i class="fas fa-tasks fa-5x mb-4"></i>
+                <h2>IbnelveApi</h2>
+                <p class="lead">Sistema de Gestão de Pessoas e Tarefas</p>
+            </div>
+        </div>
+        
+        <div class="col-md-6 d-flex align-items-center justify-content-center">
+            <div class="card shadow-lg border-0" style="width: 100%; max-width: 400px;">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <h3 class="card-title">Entrar</h3>
+                        <p class="text-muted">Acesse sua conta</p>
+                    </div>
+
+                    <EditForm Model="loginRequest" OnValidSubmit="HandleLogin">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-envelope"></i>
+                                </span>
+                                <InputText @bind-Value="loginRequest.Email" class="form-control" id="email" placeholder="seu@email.com" />
+                            </div>
+                            <ValidationMessage For="@(() => loginRequest.Email)" class="text-danger" />
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="password" class="form-label">Senha</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <InputText @bind-Value="loginRequest.Password" type="password" class="form-control" id="password" placeholder="Sua senha" />
+                            </div>
+                            <ValidationMessage For="@(() => loginRequest.Password)" class="text-danger" />
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger" role="alert">
+                                <i class="fas fa-exclamation-triangle me-2"></i>@errorMessage
+                            </div>
+                        }
+
+                        <button type="submit" class="btn btn-primary w-100 mb-3" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span>Entrando...</span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-sign-in-alt me-2"></i>
+                                <span>Entrar</span>
+                            }
+                        </button>
+                    </EditForm>
+
+                    <div class="text-center">
+                        <small class="text-muted">
+                            Usuários de teste:<br/>
+                            admin1@ibnelveapi.com / Admin123!<br/>
+                            admin2@ibnelveapi.com / Admin123!
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginRequest loginRequest = new();
+    private string errorMessage = string.Empty;
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Se já estiver autenticado, redirecionar para dashboard
+        if (await AuthService.IsAuthenticatedAsync())
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await AuthService.LoginAsync(loginRequest);
+            
+            if (result.Success)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Login realizado com sucesso!");
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                errorMessage = result.Message;
+                if (result.Errors?.Any() == true)
+                {
+                    errorMessage += " " + string.Join(", ", result.Errors);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro inesperado: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}
+

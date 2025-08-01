@@ -1,0 +1,581 @@
+@page "/tarefas/{id:int}/editar"
+@inject ITarefaService TarefaService
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Editar Tarefa - IbnelveApi</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/" class="text-decoration-none">
+                            <i class="fas fa-home me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="/tarefas" class="text-decoration-none">
+                            <i class="fas fa-tasks me-1"></i>Tarefas
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="/tarefas/@Id" class="text-decoration-none">
+                            <i class="fas fa-clipboard-list me-1"></i>@(tarefaAtual?.Titulo ?? "Tarefa")
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-edit me-1"></i>Editar
+                    </li>
+                </ol>
+            </nav>
+
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-edit me-2 text-warning"></i>
+                        Editar Tarefa
+                    </h1>
+                    <p class="text-muted mb-0">
+                        @if (tarefaAtual != null)
+                        {
+                            <span>Editando: <strong>@tarefaAtual.Titulo</strong></span>
+                        }
+                        else
+                        {
+                            <span>Carregando dados da tarefa...</span>
+                        }
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/tarefas/@Id" class="btn btn-outline-info">
+                        <i class="fas fa-eye me-2"></i>Visualizar
+                    </a>
+                    <a href="/tarefas" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoadingData)
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                        <h5>Carregando dados da tarefa...</h5>
+                        <p class="text-muted">Aguarde enquanto buscamos as informações.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(loadErrorMessage))
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="alert alert-danger" role="alert">
+                    <h4 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Erro ao carregar
+                    </h4>
+                    <p>@loadErrorMessage</p>
+                    <hr>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-danger" @onclick="LoadTarefa">
+                            <i class="fas fa-sync-alt me-2"></i>Tentar novamente
+                        </button>
+                        <a href="/tarefas" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Voltar para lista
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (tarefaAtual != null && editTarefa != null)
+    {
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-warning text-dark">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-edit me-2"></i>
+                                Editando: @tarefaAtual.Titulo
+                            </h5>
+                            <span class="badge bg-@GetStatusColor(tarefaAtual.Status) fs-6">
+                                @tarefaAtual.StatusDescricao
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                @errorMessage
+                                <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="fas fa-check-circle me-2"></i>
+                                @successMessage
+                                <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+                            </div>
+                        }
+
+                        <!-- Informações de Auditoria -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card bg-light">
+                                    <div class="card-body py-2">
+                                        <div class="row text-center">
+                                            <div class="col-md-3">
+                                                <small class="text-muted d-block">Criada em</small>
+                                                <strong>@tarefaAtual.CreatedAt.ToString("dd/MM/yyyy HH:mm")</strong>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <small class="text-muted d-block">Última atualização</small>
+                                                <strong>@tarefaAtual.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "Nunca"</strong>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <small class="text-muted d-block">Status atual</small>
+                                                <span class="badge bg-@GetStatusColor(tarefaAtual.Status)">@tarefaAtual.StatusDescricao</span>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <small class="text-muted d-block">ID</small>
+                                                <strong>#@tarefaAtual.Id</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <EditForm Model="editTarefa" OnValidSubmit="HandleSubmit">
+                            <DataAnnotationsValidator />
+                            
+                            <!-- Informações Básicas -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h6 class="text-warning border-bottom pb-2 mb-3">
+                                        <i class="fas fa-info-circle me-2"></i>Informações Básicas
+                                    </h6>
+                                </div>
+                                
+                                <div class="col-12 mb-3">
+                                    <label for="titulo" class="form-label fw-semibold">
+                                        Título <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-heading text-muted"></i>
+                                        </span>
+                                        <InputText @bind-Value="editTarefa.Titulo" class="form-control" id="titulo" 
+                                                   placeholder="Digite um título claro e objetivo" maxlength="200" />
+                                    </div>
+                                    <ValidationMessage For="@(() => editTarefa.Titulo)" class="text-danger small mt-1" />
+                                </div>
+
+                                <div class="col-12 mb-3">
+                                    <label for="descricao" class="form-label fw-semibold">
+                                        Descrição <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text align-items-start pt-2">
+                                            <i class="fas fa-align-left text-muted"></i>
+                                        </span>
+                                        <InputTextArea @bind-Value="editTarefa.Descricao" class="form-control" id="descricao" 
+                                                       placeholder="Descreva detalhadamente o que deve ser feito..." 
+                                                       rows="4" maxlength="1000" />
+                                    </div>
+                                    <ValidationMessage For="@(() => editTarefa.Descricao)" class="text-danger small mt-1" />
+                                    <div class="form-text">
+                                        <small class="text-muted">
+                                            Caracteres restantes: @(1000 - (editTarefa.Descricao?.Length ?? 0))
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Configurações -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h6 class="text-warning border-bottom pb-2 mb-3">
+                                        <i class="fas fa-cogs me-2"></i>Configurações
+                                    </h6>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label for="status" class="form-label fw-semibold">
+                                        Status <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-flag text-muted"></i>
+                                        </span>
+                                        <InputSelect @bind-Value="editTarefa.Status" class="form-select" id="status">
+                                            <option value="@StatusTarefa.Pendente">
+                                                ⏸️ Pendente - Aguardando início
+                                            </option>
+                                            <option value="@StatusTarefa.EmAndamento">
+                                                ⏳ Em Andamento - Sendo executada
+                                            </option>
+                                            <option value="@StatusTarefa.Concluida">
+                                                ✅ Concluída - Finalizada com sucesso
+                                            </option>
+                                            <option value="@StatusTarefa.Cancelada">
+                                                ❌ Cancelada - Não será executada
+                                            </option>
+                                        </InputSelect>
+                                    </div>
+                                    <ValidationMessage For="@(() => editTarefa.Status)" class="text-danger small mt-1" />
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label for="prioridade" class="form-label fw-semibold">
+                                        Prioridade <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-exclamation-circle text-muted"></i>
+                                        </span>
+                                        <InputSelect @bind-Value="editTarefa.Prioridade" class="form-select" id="prioridade">
+                                            <option value="@PrioridadeTarefa.Baixa">
+                                                🟢 Baixa - Pode ser feita quando houver tempo
+                                            </option>
+                                            <option value="@PrioridadeTarefa.Media">
+                                                🟡 Média - Prioridade normal
+                                            </option>
+                                            <option value="@PrioridadeTarefa.Alta">
+                                                🟠 Alta - Importante, deve ser priorizada
+                                            </option>
+                                            <option value="@PrioridadeTarefa.Critica">
+                                                🔴 Crítica - Urgente, requer atenção imediata
+                                            </option>
+                                        </InputSelect>
+                                    </div>
+                                    <ValidationMessage For="@(() => editTarefa.Prioridade)" class="text-danger small mt-1" />
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label for="categoria" class="form-label fw-semibold">
+                                        Categoria
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-tag text-muted"></i>
+                                        </span>
+                                        <InputText @bind-Value="editTarefa.Categoria" class="form-control" id="categoria" 
+                                                   placeholder="Ex: Desenvolvimento, Reunião, Documentação..." 
+                                                   maxlength="100" list="categorias" />
+                                    </div>
+                                    <ValidationMessage For="@(() => editTarefa.Categoria)" class="text-danger small mt-1" />
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label for="dataVencimento" class="form-label fw-semibold">
+                                        Data de Vencimento
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-calendar-alt text-muted"></i>
+                                        </span>
+                                        <InputDate @bind-Value="editTarefa.DataVencimento" class="form-control" id="dataVencimento" />
+                                    </div>
+                                    <ValidationMessage For="@(() => editTarefa.DataVencimento)" class="text-danger small mt-1" />
+                                    @if (editTarefa.DataVencimento.HasValue && editTarefa.DataVencimento.Value < DateTime.Today)
+                                    {
+                                        <div class="form-text text-warning">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            Esta tarefa está vencida!
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Preview da Tarefa Editada -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h6 class="text-warning border-bottom pb-2 mb-3">
+                                        <i class="fas fa-eye me-2"></i>Preview das Alterações
+                                    </h6>
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <h6 class="card-title mb-1">
+                                                    @(string.IsNullOrEmpty(editTarefa.Titulo) ? "Título da tarefa" : editTarefa.Titulo)
+                                                </h6>
+                                                <div class="d-flex gap-2">
+                                                    <span class="badge bg-@GetStatusColor(editTarefa.Status)">
+                                                        @GetStatusText(editTarefa.Status)
+                                                    </span>
+                                                    <span class="badge bg-@GetPrioridadeColor(editTarefa.Prioridade)">
+                                                        @GetPrioridadeText(editTarefa.Prioridade)
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <p class="card-text text-muted small mb-2">
+                                                @(string.IsNullOrEmpty(editTarefa.Descricao) ? "Descrição da tarefa" : editTarefa.Descricao)
+                                            </p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-muted">
+                                                    @if (!string.IsNullOrEmpty(editTarefa.Categoria))
+                                                    {
+                                                        <i class="fas fa-tag me-1"></i>@editTarefa.Categoria
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="fas fa-tag me-1">Sem categoria</i>
+                                                    }
+                                                </small>
+                                                <small class="text-muted">
+                                                    @if (editTarefa.DataVencimento.HasValue)
+                                                    {
+                                                        <i class="fas fa-calendar me-1"></i>@editTarefa.DataVencimento.Value.ToString("dd/MM/yyyy")
+                                                        @if (editTarefa.DataVencimento.Value < DateTime.Today)
+                                                        {
+                                                            <span class="text-danger ms-1">(Vencida)</span>
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="fas fa-calendar me-1">Sem prazo</i>
+                                                    }
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Botões -->
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <a href="/tarefas/@Id" class="btn btn-outline-secondary">
+                                            <i class="fas fa-times me-2"></i>Cancelar
+                                        </a>
+                                        <button type="button" class="btn btn-outline-info" @onclick="ResetarAlteracoes">
+                                            <i class="fas fa-undo me-2"></i>Desfazer Alterações
+                                        </button>
+                                        @if (tarefaAtual.Status != StatusTarefa.Concluida && editTarefa.Status != StatusTarefa.Concluida)
+                                        {
+                                            <button type="button" class="btn btn-success" @onclick="MarcarComoConcluida">
+                                                <i class="fas fa-check me-2"></i>Marcar como Concluída
+                                            </button>
+                                        }
+                                        <button type="submit" class="btn btn-warning" disabled="@isLoading">
+                                            @if (isLoading)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                                <span>Salvando...</span>
+                                            }
+                                            else
+                                            {
+                                                <i class="fas fa-save me-2"></i>
+                                                <span>Salvar Alterações</span>
+                                            }
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    
+    private TarefaDto? tarefaAtual;
+    private UpdateTarefaDto? editTarefa;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private string loadErrorMessage = string.Empty;
+    private bool isLoading = false;
+    private bool isLoadingData = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await AuthService.IsAuthenticatedAsync())
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadTarefa();
+    }
+
+    private async Task LoadTarefa()
+    {
+        isLoadingData = true;
+        loadErrorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await TarefaService.GetByIdAsync(Id);
+            if (result.Success && result.Data != null)
+            {
+                tarefaAtual = result.Data;
+                editTarefa = new UpdateTarefaDto
+                {
+                    Titulo = tarefaAtual.Titulo,
+                    Descricao = tarefaAtual.Descricao,
+                    Status = tarefaAtual.Status,
+                    Prioridade = tarefaAtual.Prioridade,
+                    Categoria = tarefaAtual.Categoria,
+                    DataVencimento = tarefaAtual.DataVencimento
+                };
+            }
+            else
+            {
+                loadErrorMessage = result.Message ?? "Tarefa não encontrada.";
+            }
+        }
+        catch (Exception ex)
+        {
+            loadErrorMessage = "Erro ao carregar dados: " + ex.Message;
+        }
+        finally
+        {
+            isLoadingData = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (editTarefa == null) return;
+
+        isLoading = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await TarefaService.UpdateAsync(Id, editTarefa);
+            
+            if (result.Success)
+            {
+                successMessage = "Tarefa atualizada com sucesso!";
+                await JSRuntime.InvokeVoidAsync("scrollTo", 0, 0);
+                
+                // Recarregar dados atualizados
+                await LoadTarefa();
+            }
+            else
+            {
+                errorMessage = result.Message;
+                if (result.Errors?.Any() == true)
+                {
+                    errorMessage += " " + string.Join(", ", result.Errors);
+                }
+                await JSRuntime.InvokeVoidAsync("scrollTo", 0, 0);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro inesperado: " + ex.Message;
+            await JSRuntime.InvokeVoidAsync("scrollTo", 0, 0);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task MarcarComoConcluida()
+    {
+        if (editTarefa == null) return;
+
+        editTarefa.Status = StatusTarefa.Concluida;
+        await HandleSubmit();
+    }
+
+    private void ResetarAlteracoes()
+    {
+        if (tarefaAtual != null)
+        {
+            editTarefa = new UpdateTarefaDto
+            {
+                Titulo = tarefaAtual.Titulo,
+                Descricao = tarefaAtual.Descricao,
+                Status = tarefaAtual.Status,
+                Prioridade = tarefaAtual.Prioridade,
+                Categoria = tarefaAtual.Categoria,
+                DataVencimento = tarefaAtual.DataVencimento
+            };
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+            StateHasChanged();
+        }
+    }
+
+    private string GetStatusColor(StatusTarefa status)
+    {
+        return status switch
+        {
+            StatusTarefa.Pendente => "warning",
+            StatusTarefa.EmAndamento => "info",
+            StatusTarefa.Concluida => "success",
+            StatusTarefa.Cancelada => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetStatusText(StatusTarefa status)
+    {
+        return status switch
+        {
+            StatusTarefa.Pendente => "Pendente",
+            StatusTarefa.EmAndamento => "Em Andamento",
+            StatusTarefa.Concluida => "Concluída",
+            StatusTarefa.Cancelada => "Cancelada",
+            _ => "Desconhecido"
+        };
+    }
+
+    private string GetPrioridadeColor(PrioridadeTarefa prioridade)
+    {
+        return prioridade switch
+        {
+            PrioridadeTarefa.Baixa => "secondary",
+            PrioridadeTarefa.Media => "primary",
+            PrioridadeTarefa.Alta => "warning",
+            PrioridadeTarefa.Critica => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetPrioridadeText(PrioridadeTarefa prioridade)
+    {
+        return prioridade switch
+        {
+            PrioridadeTarefa.Baixa => "Baixa",
+            PrioridadeTarefa.Media => "Média",
+            PrioridadeTarefa.Alta => "Alta",
+            PrioridadeTarefa.Critica => "Crítica",
+            _ => "Média"
+        };
+    }
+}
+

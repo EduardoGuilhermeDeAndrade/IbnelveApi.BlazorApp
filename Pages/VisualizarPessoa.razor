@@ -1,0 +1,489 @@
+@page "/pessoas/{id:int}"
+@inject IPessoaService PessoaService
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@(pessoa?.Nome ?? "Pessoa") - IbnelveApi</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/" class="text-decoration-none">
+                            <i class="fas fa-home me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="/pessoas" class="text-decoration-none">
+                            <i class="fas fa-users me-1"></i>Pessoas
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-user me-1"></i>@(pessoa?.Nome ?? "Carregando...")
+                    </li>
+                </ol>
+            </nav>
+
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-user me-2 text-info"></i>
+                        @(pessoa?.Nome ?? "Carregando...")
+                    </h1>
+                    <p class="text-muted mb-0">
+                        @if (pessoa != null)
+                        {
+                            <span>CPF: <strong>@pessoa.CPF</strong> • Cadastrado em @pessoa.CreatedAt.ToString("dd/MM/yyyy")</span>
+                        }
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/pessoas/@Id/editar" class="btn btn-warning">
+                        <i class="fas fa-edit me-2"></i>Editar
+                    </a>
+                    <button class="btn btn-outline-danger" @onclick="ConfirmarExclusao">
+                        <i class="fas fa-trash me-2"></i>Excluir
+                    </button>
+                    <a href="/pessoas" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                        <h5>Carregando dados da pessoa...</h5>
+                        <p class="text-muted">Aguarde enquanto buscamos as informações.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="alert alert-danger" role="alert">
+                    <h4 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Erro ao carregar
+                    </h4>
+                    <p>@errorMessage</p>
+                    <hr>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-danger" @onclick="LoadPessoa">
+                            <i class="fas fa-sync-alt me-2"></i>Tentar novamente
+                        </button>
+                        <a href="/pessoas" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Voltar para lista
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (pessoa != null)
+    {
+        <div class="row">
+            <!-- Dados Pessoais -->
+            <div class="col-lg-8 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-user-circle me-2"></i>
+                            Dados Pessoais
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small fw-semibold">NOME COMPLETO</label>
+                                <div class="p-3 bg-light rounded">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-user me-2 text-info"></i>
+                                        @pessoa.Nome
+                                    </h6>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small fw-semibold">CPF</label>
+                                <div class="p-3 bg-light rounded">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-id-card me-2 text-info"></i>
+                                        <code class="fs-6">@pessoa.CPF</code>
+                                    </h6>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small fw-semibold">TELEFONE</label>
+                                <div class="p-3 bg-light rounded">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-phone me-2 text-info"></i>
+                                        <a href="tel:@pessoa.Telefone" class="text-decoration-none">@pessoa.Telefone</a>
+                                    </h6>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small fw-semibold">ID NO SISTEMA</label>
+                                <div class="p-3 bg-light rounded">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-hashtag me-2 text-info"></i>
+                                        @pessoa.Id
+                                    </h6>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ações Rápidas -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <a href="tel:@pessoa.Telefone" class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-phone me-1"></i>Ligar
+                                    </a>
+                                    <button class="btn btn-outline-info btn-sm" @onclick="CopiarCPF">
+                                        <i class="fas fa-copy me-1"></i>Copiar CPF
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm" @onclick="CopiarEndereco">
+                                        <i class="fas fa-map-marker-alt me-1"></i>Copiar Endereço
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Endereço -->
+            <div class="col-lg-4 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-map-marker-alt me-2"></i>
+                            Endereço
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-semibold">CEP</label>
+                            <div class="p-2 bg-light rounded">
+                                <strong>@pessoa.Endereco.CEP</strong>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-semibold">RUA/LOGRADOURO</label>
+                            <div class="p-2 bg-light rounded">
+                                @pessoa.Endereco.Rua
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-semibold">BAIRRO</label>
+                            <div class="p-2 bg-light rounded">
+                                @pessoa.Endereco.Bairro
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-8">
+                                <label class="form-label text-muted small fw-semibold">CIDADE</label>
+                                <div class="p-2 bg-light rounded">
+                                    @pessoa.Endereco.Cidade
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label text-muted small fw-semibold">UF</label>
+                                <div class="p-2 bg-light rounded text-center">
+                                    <strong>@pessoa.Endereco.UF</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mapa -->
+                        <div class="mt-3">
+                            <a href="https://www.google.com/maps/search/@(Uri.EscapeDataString($"{pessoa.Endereco.Rua}, {pessoa.Endereco.Bairro}, {pessoa.Endereco.Cidade}, {pessoa.Endereco.UF}, {pessoa.Endereco.CEP}"))" 
+                               target="_blank" class="btn btn-outline-success btn-sm w-100">
+                                <i class="fas fa-map me-2"></i>Ver no Google Maps
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informações de Auditoria -->
+            <div class="col-12 mb-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>
+                            Informações de Auditoria
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="p-3 border rounded">
+                                    <i class="fas fa-calendar-plus fa-2x text-success mb-2"></i>
+                                    <h6 class="text-muted small">CRIADO EM</h6>
+                                    <strong>@pessoa.CreatedAt.ToString("dd/MM/yyyy")</strong>
+                                    <br />
+                                    <small class="text-muted">@pessoa.CreatedAt.ToString("HH:mm:ss")</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 border rounded">
+                                    <i class="fas fa-calendar-check fa-2x text-warning mb-2"></i>
+                                    <h6 class="text-muted small">ÚLTIMA ATUALIZAÇÃO</h6>
+                                    @if (pessoa.UpdatedAt.HasValue)
+                                    {
+                                        <strong>@pessoa.UpdatedAt.Value.ToString("dd/MM/yyyy")</strong>
+                                        <br />
+                                        <small class="text-muted">@pessoa.UpdatedAt.Value.ToString("HH:mm:ss")</small>
+                                    }
+                                    else
+                                    {
+                                        <strong>Nunca</strong>
+                                        <br />
+                                        <small class="text-muted">Sem alterações</small>
+                                    }
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 border rounded">
+                                    <i class="fas fa-building fa-2x text-info mb-2"></i>
+                                    <h6 class="text-muted small">TENANT ID</h6>
+                                    <strong>@pessoa.TenantId</strong>
+                                    <br />
+                                    <small class="text-muted">Organização</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 border rounded">
+                                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                                    <h6 class="text-muted small">STATUS</h6>
+                                    <strong class="text-success">Ativo</strong>
+                                    <br />
+                                    <small class="text-muted">Não excluído</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ações -->
+            <div class="col-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-cogs me-2"></i>
+                            Ações Disponíveis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="d-grid gap-2">
+                                    <a href="/pessoas/@Id/editar" class="btn btn-warning">
+                                        <i class="fas fa-edit me-2"></i>Editar Dados
+                                    </a>
+                                    <button class="btn btn-outline-info" @onclick="CopiarDados">
+                                        <i class="fas fa-copy me-2"></i>Copiar Todos os Dados
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-grid gap-2">
+                                    <a href="/pessoas/nova" class="btn btn-success">
+                                        <i class="fas fa-user-plus me-2"></i>Cadastrar Nova Pessoa
+                                    </a>
+                                    <button class="btn btn-outline-danger" @onclick="ConfirmarExclusao">
+                                        <i class="fas fa-trash me-2"></i>Excluir Pessoa
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirmar Exclusão
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza que deseja excluir a pessoa <strong>@pessoa?.Nome</strong>?</p>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Esta ação não pode ser desfeita. A pessoa será marcada como excluída no sistema.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelarExclusao">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="ExcluirPessoa" disabled="@isDeleting">
+                        @if (isDeleting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            <span>Excluindo...</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-trash me-2"></i>
+                            <span>Confirmar Exclusão</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    
+    private PessoaDto? pessoa;
+    private string errorMessage = string.Empty;
+    private bool isLoading = true;
+    private bool showDeleteModal = false;
+    private bool isDeleting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await AuthService.IsAuthenticatedAsync())
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadPessoa();
+    }
+
+    private async Task LoadPessoa()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await PessoaService.GetByIdAsync(Id);
+            if (result.Success && result.Data != null)
+            {
+                pessoa = result.Data;
+            }
+            else
+            {
+                errorMessage = result.Message ?? "Pessoa não encontrada.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao carregar dados: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ConfirmarExclusao()
+    {
+        showDeleteModal = true;
+        StateHasChanged();
+    }
+
+    private void CancelarExclusao()
+    {
+        showDeleteModal = false;
+        StateHasChanged();
+    }
+
+    private async Task ExcluirPessoa()
+    {
+        isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await PessoaService.DeleteAsync(Id);
+            if (result.Success)
+            {
+                Navigation.NavigateTo("/pessoas");
+            }
+            else
+            {
+                errorMessage = result.Message;
+                showDeleteModal = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao excluir pessoa: " + ex.Message;
+            showDeleteModal = false;
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CopiarCPF()
+    {
+        if (pessoa != null)
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", pessoa.CPF);
+            // Aqui você pode adicionar um toast de sucesso
+        }
+    }
+
+    private async Task CopiarEndereco()
+    {
+        if (pessoa != null)
+        {
+            var endereco = $"{pessoa.Endereco.Rua}, {pessoa.Endereco.Bairro}, {pessoa.Endereco.Cidade}, {pessoa.Endereco.UF}, {pessoa.Endereco.CEP}";
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", endereco);
+        }
+    }
+
+    private async Task CopiarDados()
+    {
+        if (pessoa != null)
+        {
+            var dados = $"Nome: {pessoa.Nome}\nCPF: {pessoa.CPF}\nTelefone: {pessoa.Telefone}\nEndereço: {pessoa.Endereco.Rua}, {pessoa.Endereco.Bairro}, {pessoa.Endereco.Cidade}, {pessoa.Endereco.UF}, {pessoa.Endereco.CEP}";
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", dados);
+        }
+    }
+}
+

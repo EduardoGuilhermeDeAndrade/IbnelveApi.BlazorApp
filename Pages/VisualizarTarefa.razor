@@ -1,0 +1,697 @@
+@page "/tarefas/{id:int}"
+@inject ITarefaService TarefaService
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@(tarefa?.Titulo ?? "Tarefa") - IbnelveApi</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/" class="text-decoration-none">
+                            <i class="fas fa-home me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="/tarefas" class="text-decoration-none">
+                            <i class="fas fa-tasks me-1"></i>Tarefas
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-clipboard-list me-1"></i>@(tarefa?.Titulo ?? "Carregando...")
+                    </li>
+                </ol>
+            </nav>
+
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div class="flex-grow-1 me-3">
+                    <h1 class="h3 mb-2">
+                        <i class="fas fa-clipboard-list me-2 text-info"></i>
+                        @(tarefa?.Titulo ?? "Carregando...")
+                    </h1>
+                    @if (tarefa != null)
+                    {
+                        <div class="d-flex gap-2 flex-wrap">
+                            <span class="badge bg-@GetStatusColor(tarefa.Status) fs-6">
+                                @GetStatusIcon(tarefa.Status) @tarefa.StatusDescricao
+                            </span>
+                            <span class="badge bg-@GetPrioridadeColor(tarefa.Prioridade) fs-6">
+                                @GetPrioridadeIcon(tarefa.Prioridade) @tarefa.PrioridadeDescricao
+                            </span>
+                            @if (!string.IsNullOrEmpty(tarefa.Categoria))
+                            {
+                                <span class="badge bg-secondary fs-6">
+                                    <i class="fas fa-tag me-1"></i>@tarefa.Categoria
+                                </span>
+                            }
+                            @if (tarefa.EstaVencida)
+                            {
+                                <span class="badge bg-danger fs-6">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Vencida
+                                </span>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    @if (tarefa?.Status != StatusTarefa.Concluida)
+                    {
+                        <button class="btn btn-success" @onclick="MarcarComoConcluida">
+                            <i class="fas fa-check me-2"></i>Concluir
+                        </button>
+                    }
+                    <a href="/tarefas/@Id/editar" class="btn btn-warning">
+                        <i class="fas fa-edit me-2"></i>Editar
+                    </a>
+                    <button class="btn btn-outline-danger" @onclick="ConfirmarExclusao">
+                        <i class="fas fa-trash me-2"></i>Excluir
+                    </button>
+                    <a href="/tarefas" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                        <h5>Carregando dados da tarefa...</h5>
+                        <p class="text-muted">Aguarde enquanto buscamos as informações.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="alert alert-danger" role="alert">
+                    <h4 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Erro ao carregar
+                    </h4>
+                    <p>@errorMessage</p>
+                    <hr>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-danger" @onclick="LoadTarefa">
+                            <i class="fas fa-sync-alt me-2"></i>Tentar novamente
+                        </button>
+                        <a href="/tarefas" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Voltar para lista
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (tarefa != null)
+    {
+        <div class="row">
+            <!-- Descrição e Detalhes -->
+            <div class="col-lg-8 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-align-left me-2"></i>
+                            Descrição e Detalhes
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Descrição -->
+                        <div class="mb-4">
+                            <label class="form-label text-muted small fw-semibold">DESCRIÇÃO</label>
+                            <div class="p-3 bg-light rounded">
+                                <p class="mb-0 lh-lg">@tarefa.Descricao</p>
+                            </div>
+                        </div>
+
+                        <!-- Progresso Visual -->
+                        <div class="mb-4">
+                            <label class="form-label text-muted small fw-semibold">PROGRESSO</label>
+                            <div class="progress mb-2" style="height: 25px;">
+                                <div class="progress-bar bg-@GetStatusColor(tarefa.Status) progress-bar-striped @(tarefa.Status == StatusTarefa.EmAndamento ? "progress-bar-animated" : "")" 
+                                     role="progressbar" style="width: @GetProgressPercentage(tarefa.Status)%" 
+                                     aria-valuenow="@GetProgressValue(tarefa.Status)" aria-valuemin="0" aria-valuemax="100">
+                                    @GetProgressPercentage(tarefa.Status)%
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                Status: <strong>@tarefa.StatusDescricao</strong>
+                            </small>
+                        </div>
+
+                        <!-- Informações Adicionais -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small fw-semibold">CATEGORIA</label>
+                                <div class="p-2 bg-light rounded">
+                                    @if (!string.IsNullOrEmpty(tarefa.Categoria))
+                                    {
+                                        <i class="fas fa-tag me-2 text-info"></i>@tarefa.Categoria
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Sem categoria</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small fw-semibold">ID NO SISTEMA</label>
+                                <div class="p-2 bg-light rounded">
+                                    <i class="fas fa-hashtag me-2 text-info"></i>@tarefa.Id
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ações Rápidas -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button class="btn btn-outline-info btn-sm" @onclick="CopiarTitulo">
+                                        <i class="fas fa-copy me-1"></i>Copiar Título
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm" @onclick="CopiarDescricao">
+                                        <i class="fas fa-clipboard me-1"></i>Copiar Descrição
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" @onclick="CopiarTodosDados">
+                                        <i class="fas fa-copy me-1"></i>Copiar Todos os Dados
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status e Prazos -->
+            <div class="col-lg-4 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-@GetStatusColor(tarefa.Status) text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Status e Prazos
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Status -->
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-semibold">STATUS ATUAL</label>
+                            <div class="p-3 bg-light rounded text-center">
+                                <span class="badge bg-@GetStatusColor(tarefa.Status) fs-5 px-3 py-2">
+                                    @GetStatusIcon(tarefa.Status) @tarefa.StatusDescricao
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Prioridade -->
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-semibold">PRIORIDADE</label>
+                            <div class="p-3 bg-light rounded text-center">
+                                <span class="badge bg-@GetPrioridadeColor(tarefa.Prioridade) fs-5 px-3 py-2">
+                                    @GetPrioridadeIcon(tarefa.Prioridade) @tarefa.PrioridadeDescricao
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Data de Vencimento -->
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-semibold">VENCIMENTO</label>
+                            <div class="p-3 bg-light rounded text-center">
+                                @if (tarefa.DataVencimento.HasValue)
+                                {
+                                    <div class="@(tarefa.EstaVencida ? "text-danger" : "")">
+                                        <i class="fas fa-calendar-alt me-2"></i>
+                                        <strong>@tarefa.DataVencimento.Value.ToString("dd/MM/yyyy")</strong>
+                                        <br />
+                                        <small>@tarefa.DataVencimento.Value.ToString("dddd", new System.Globalization.CultureInfo("pt-BR"))</small>
+                                        @if (tarefa.EstaVencida)
+                                        {
+                                            <br />
+                                            <span class="badge bg-danger mt-1">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>Vencida
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <br />
+                                            <small class="text-muted">
+                                                @GetDiasRestantes(tarefa.DataVencimento.Value)
+                                            </small>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">
+                                        <i class="fas fa-infinity me-2"></i>Sem prazo definido
+                                    </span>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Ações de Status -->
+                        @if (tarefa.Status != StatusTarefa.Concluida)
+                        {
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-success" @onclick="MarcarComoConcluida">
+                                    <i class="fas fa-check me-2"></i>Marcar como Concluída
+                                </button>
+                                @if (tarefa.Status == StatusTarefa.Pendente)
+                                {
+                                    <button class="btn btn-info" @onclick="IniciarTarefa">
+                                        <i class="fas fa-play me-2"></i>Iniciar Tarefa
+                                    </button>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-success text-center mb-0">
+                                <i class="fas fa-check-circle fa-2x mb-2"></i>
+                                <br />
+                                <strong>Tarefa Concluída!</strong>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informações de Auditoria -->
+            <div class="col-12 mb-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>
+                            Histórico e Auditoria
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="p-3 border rounded">
+                                    <i class="fas fa-calendar-plus fa-2x text-success mb-2"></i>
+                                    <h6 class="text-muted small">CRIADA EM</h6>
+                                    <strong>@tarefa.CreatedAt.ToString("dd/MM/yyyy")</strong>
+                                    <br />
+                                    <small class="text-muted">@tarefa.CreatedAt.ToString("HH:mm:ss")</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 border rounded">
+                                    <i class="fas fa-calendar-check fa-2x text-warning mb-2"></i>
+                                    <h6 class="text-muted small">ÚLTIMA ATUALIZAÇÃO</h6>
+                                    @if (tarefa.UpdatedAt.HasValue)
+                                    {
+                                        <strong>@tarefa.UpdatedAt.Value.ToString("dd/MM/yyyy")</strong>
+                                        <br />
+                                        <small class="text-muted">@tarefa.UpdatedAt.Value.ToString("HH:mm:ss")</small>
+                                    }
+                                    else
+                                    {
+                                        <strong>Nunca</strong>
+                                        <br />
+                                        <small class="text-muted">Sem alterações</small>
+                                    }
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 border rounded">
+                                    <i class="fas fa-building fa-2x text-info mb-2"></i>
+                                    <h6 class="text-muted small">TENANT ID</h6>
+                                    <strong>@tarefa.TenantId</strong>
+                                    <br />
+                                    <small class="text-muted">Organização</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 border rounded">
+                                    <i class="fas fa-clock fa-2x text-primary mb-2"></i>
+                                    <h6 class="text-muted small">TEMPO DECORRIDO</h6>
+                                    <strong>@GetTempoDecorrido(tarefa.CreatedAt)</strong>
+                                    <br />
+                                    <small class="text-muted">Desde a criação</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ações Disponíveis -->
+            <div class="col-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-cogs me-2"></i>
+                            Ações Disponíveis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="d-grid gap-2">
+                                    <a href="/tarefas/@Id/editar" class="btn btn-warning">
+                                        <i class="fas fa-edit me-2"></i>Editar Tarefa
+                                    </a>
+                                    @if (tarefa.Status != StatusTarefa.Concluida)
+                                    {
+                                        <button class="btn btn-success" @onclick="MarcarComoConcluida">
+                                            <i class="fas fa-check me-2"></i>Marcar como Concluída
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-grid gap-2">
+                                    <a href="/tarefas/nova" class="btn btn-primary">
+                                        <i class="fas fa-plus me-2"></i>Criar Nova Tarefa
+                                    </a>
+                                    <button class="btn btn-outline-danger" @onclick="ConfirmarExclusao">
+                                        <i class="fas fa-trash me-2"></i>Excluir Tarefa
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirmar Exclusão
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza que deseja excluir a tarefa <strong>@tarefa?.Titulo</strong>?</p>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Esta ação não pode ser desfeita. A tarefa será marcada como excluída no sistema.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelarExclusao">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="ExcluirTarefa" disabled="@isDeleting">
+                        @if (isDeleting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            <span>Excluindo...</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-trash me-2"></i>
+                            <span>Confirmar Exclusão</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    
+    private TarefaDto? tarefa;
+    private string errorMessage = string.Empty;
+    private bool isLoading = true;
+    private bool showDeleteModal = false;
+    private bool isDeleting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await AuthService.IsAuthenticatedAsync())
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadTarefa();
+    }
+
+    private async Task LoadTarefa()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await TarefaService.GetByIdAsync(Id);
+            if (result.Success && result.Data != null)
+            {
+                tarefa = result.Data;
+            }
+            else
+            {
+                errorMessage = result.Message ?? "Tarefa não encontrada.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao carregar dados: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task MarcarComoConcluida()
+    {
+        if (tarefa == null) return;
+
+        try
+        {
+            var result = await TarefaService.MarcarComoConcluidaAsync(Id);
+            if (result.Success)
+            {
+                await LoadTarefa(); // Recarregar dados
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao marcar como concluída: " + ex.Message;
+        }
+    }
+
+    private async Task IniciarTarefa()
+    {
+        if (tarefa == null) return;
+
+        try
+        {
+            var updateDto = new UpdateTarefaDto
+            {
+                Titulo = tarefa.Titulo,
+                Descricao = tarefa.Descricao,
+                Status = StatusTarefa.EmAndamento,
+                Prioridade = tarefa.Prioridade,
+                Categoria = tarefa.Categoria,
+                DataVencimento = tarefa.DataVencimento
+            };
+
+            var result = await TarefaService.UpdateAsync(Id, updateDto);
+            if (result.Success)
+            {
+                await LoadTarefa(); // Recarregar dados
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao iniciar tarefa: " + ex.Message;
+        }
+    }
+
+    private void ConfirmarExclusao()
+    {
+        showDeleteModal = true;
+        StateHasChanged();
+    }
+
+    private void CancelarExclusao()
+    {
+        showDeleteModal = false;
+        StateHasChanged();
+    }
+
+    private async Task ExcluirTarefa()
+    {
+        isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await TarefaService.DeleteAsync(Id);
+            if (result.Success)
+            {
+                Navigation.NavigateTo("/tarefas");
+            }
+            else
+            {
+                errorMessage = result.Message;
+                showDeleteModal = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao excluir tarefa: " + ex.Message;
+            showDeleteModal = false;
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CopiarTitulo()
+    {
+        if (tarefa != null)
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", tarefa.Titulo);
+        }
+    }
+
+    private async Task CopiarDescricao()
+    {
+        if (tarefa != null)
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", tarefa.Descricao);
+        }
+    }
+
+    private async Task CopiarTodosDados()
+    {
+        if (tarefa != null)
+        {
+            var dados = $"Título: {tarefa.Titulo}\nDescrição: {tarefa.Descricao}\nStatus: {tarefa.StatusDescricao}\nPrioridade: {tarefa.PrioridadeDescricao}\nCategoria: {tarefa.Categoria ?? "Sem categoria"}\nVencimento: {(tarefa.DataVencimento?.ToString("dd/MM/yyyy") ?? "Sem prazo")}";
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", dados);
+        }
+    }
+
+    private string GetStatusColor(StatusTarefa status)
+    {
+        return status switch
+        {
+            StatusTarefa.Pendente => "warning",
+            StatusTarefa.EmAndamento => "info",
+            StatusTarefa.Concluida => "success",
+            StatusTarefa.Cancelada => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetStatusIcon(StatusTarefa status)
+    {
+        return status switch
+        {
+            StatusTarefa.Pendente => "⏸️",
+            StatusTarefa.EmAndamento => "⏳",
+            StatusTarefa.Concluida => "✅",
+            StatusTarefa.Cancelada => "❌",
+            _ => "❓"
+        };
+    }
+
+    private string GetPrioridadeColor(PrioridadeTarefa prioridade)
+    {
+        return prioridade switch
+        {
+            PrioridadeTarefa.Baixa => "secondary",
+            PrioridadeTarefa.Media => "primary",
+            PrioridadeTarefa.Alta => "warning",
+            PrioridadeTarefa.Critica => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetPrioridadeIcon(PrioridadeTarefa prioridade)
+    {
+        return prioridade switch
+        {
+            PrioridadeTarefa.Baixa => "🟢",
+            PrioridadeTarefa.Media => "🟡",
+            PrioridadeTarefa.Alta => "🟠",
+            PrioridadeTarefa.Critica => "🔴",
+            _ => "⚪"
+        };
+    }
+
+    private string GetProgressPercentage(StatusTarefa status)
+    {
+        return status switch
+        {
+            StatusTarefa.Pendente => "0",
+            StatusTarefa.EmAndamento => "50",
+            StatusTarefa.Concluida => "100",
+            StatusTarefa.Cancelada => "0",
+            _ => "0"
+        };
+    }
+
+    private int GetProgressValue(StatusTarefa status)
+    {
+        return status switch
+        {
+            StatusTarefa.Pendente => 0,
+            StatusTarefa.EmAndamento => 50,
+            StatusTarefa.Concluida => 100,
+            StatusTarefa.Cancelada => 0,
+            _ => 0
+        };
+    }
+
+    private string GetDiasRestantes(DateTime dataVencimento)
+    {
+        var dias = (dataVencimento - DateTime.Today).Days;
+        if (dias < 0) return "Vencida";
+        if (dias == 0) return "Vence hoje";
+        if (dias == 1) return "Vence amanhã";
+        return $"Vence em {dias} dias";
+    }
+
+    private string GetTempoDecorrido(DateTime dataCriacao)
+    {
+        var tempo = DateTime.Now - dataCriacao;
+        if (tempo.Days > 0) return $"{tempo.Days} dias";
+        if (tempo.Hours > 0) return $"{tempo.Hours} horas";
+        return $"{tempo.Minutes} minutos";
+    }
+}
+

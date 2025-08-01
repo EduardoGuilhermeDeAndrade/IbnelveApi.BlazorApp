@@ -1,0 +1,278 @@
+﻿@page "/"
+@inject IAuthService AuthService
+@inject ITarefaService TarefaService
+@inject IPessoaService PessoaService
+@inject NavigationManager Navigation
+
+<PageTitle>Dashboard - IbnelveApi</PageTitle>
+
+@if (!isAuthenticated)
+{
+    <div class="text-center py-5">
+        <i class="fas fa-lock fa-3x text-muted mb-3"></i>
+        <h3>Acesso Restrito</h3>
+        <p class="text-muted">Você precisa fazer login para acessar o dashboard.</p>
+        <a href="/login" class="btn btn-primary">
+            <i class="fas fa-sign-in-alt me-2"></i>Fazer Login
+        </a>
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>Dashboard</h1>
+            <p class="text-muted mb-0">Bem-vindo, @currentUser.Email</p>
+        </div>
+        <div class="text-end">
+            <small class="text-muted">Tenant: @currentUser.TenantId</small>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2 text-muted">Carregando dados...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Cards de Estatísticas -->
+        <div class="row mb-4">
+
+            <div class="col-md-3 mb-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <span class="me-2">Total de Tarefas:</span>
+                                <h4 class="mb-0">@totalTarefas</h4>
+                            </div>
+                            <i class="fas fa-tasks fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 mb-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <span class="me-2">Pendentes:</span>
+                                <h4 class="mb-0">@tarefasPendentes</h4>
+                            </div>
+                            <i class="fas fa-tasks fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 mb-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <span class="me-2">Concluídas:</span>
+                                <h4 class="mb-0">@tarefasConcluidas</h4>
+                            </div>
+                            <i class="fas fa-tasks fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+           
+            <div class="col-md-3 mb-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <span class="me-2">Pessoas:</span>
+                                <h4 class="mb-0">@totalPessoas</h4>
+                            </div>
+                            <i class="fas fa-tasks fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarefas Vencidas -->
+        @if (tarefasVencidas?.Any() == true)
+        {
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Tarefas Vencidas (@tarefasVencidas.Count())
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            @foreach (var tarefa in tarefasVencidas.Take(5))
+                            {
+                                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                    <div>
+                                        <strong>@tarefa.Titulo</strong>
+                                        <br />
+                                        <small class="text-muted">Vencimento: @tarefa.DataVencimento?.ToString("dd/MM/yyyy")</small>
+                                    </div>
+                                    <span class="badge bg-@GetPrioridadeColor(tarefa.Prioridade)">@tarefa.PrioridadeDescricao</span>
+                                </div>
+                            }
+                            @if (tarefasVencidas.Count() > 5)
+                            {
+                                <div class="text-center mt-3">
+                                    <a href="/tarefas/vencidas" class="btn btn-outline-warning btn-sm">
+                                        Ver todas (@tarefasVencidas.Count())
+                                    </a>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Ações Rápidas -->
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Ações Rápidas</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="/tarefas/nova" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Nova Tarefa
+                            </a>
+                            <a href="/tarefas" class="btn btn-outline-primary">
+                                <i class="fas fa-list me-2"></i>Ver Todas as Tarefas
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Tarefas Recentes</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (tarefasRecentes?.Any() == true)
+                        {
+                            @foreach (var tarefa in tarefasRecentes.Take(5))
+                            {
+                                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                    <div>
+                                        <strong>@tarefa.Titulo</strong>
+                                        <br />
+                                        <small class="text-muted">@tarefa.StatusDescricao</small>
+                                    </div>
+                                    <span class="badge bg-@GetStatusColor(tarefa.Status)">@tarefa.StatusDescricao</span>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-0">Nenhuma tarefa encontrada.</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private bool isAuthenticated = false;
+    private bool isLoading = true;
+    private UserInfo currentUser = new();
+    
+    private int totalTarefas = 0;
+    private int tarefasPendentes = 0;
+    private int tarefasConcluidas = 0;
+    private int totalPessoas = 0;
+    
+    private IEnumerable<TarefaDto>? tarefasVencidas;
+    private IEnumerable<TarefaDto>? tarefasRecentes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        
+        if (!isAuthenticated)
+        {
+            isLoading = false;
+            return;
+        }
+
+        currentUser = await AuthService.GetCurrentUserAsync();
+        await LoadDashboardData();
+        isLoading = false;
+    }
+
+    private async Task LoadDashboardData()
+    {
+        try
+        {
+            // Carregar tarefas
+            var tarefasResult = await TarefaService.GetAllAsync();
+            if (tarefasResult.Success && tarefasResult.Data != null)
+            {
+                var tarefas = tarefasResult.Data.ToList();
+                totalTarefas = tarefas.Count;
+                tarefasPendentes = tarefas.Count(t => t.Status == StatusTarefa.Pendente);
+                tarefasConcluidas = tarefas.Count(t => t.Status == StatusTarefa.Concluida);
+                tarefasRecentes = tarefas.OrderByDescending(t => t.CreatedAt);
+            }
+
+            // Carregar tarefas vencidas
+            var vencidasResult = await TarefaService.GetVencidasAsync();
+            if (vencidasResult.Success && vencidasResult.Data != null)
+            {
+                tarefasVencidas = vencidasResult.Data;
+            }
+
+            // Carregar pessoas
+            var pessoasResult = await PessoaService.GetAllAsync();
+            if (pessoasResult.Success && pessoasResult.Data != null)
+            {
+                totalPessoas = pessoasResult.Data.Count();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao carregar dados do dashboard: {ex.Message}");
+        }
+    }
+
+    private string GetStatusColor(StatusTarefa status)
+    {
+        return status switch
+        {
+            StatusTarefa.Pendente => "warning",
+            StatusTarefa.EmAndamento => "info",
+            StatusTarefa.Concluida => "success",
+            StatusTarefa.Cancelada => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetPrioridadeColor(PrioridadeTarefa prioridade)
+    {
+        return prioridade switch
+        {
+            PrioridadeTarefa.Baixa => "secondary",
+            PrioridadeTarefa.Media => "primary",
+            PrioridadeTarefa.Alta => "warning",
+            PrioridadeTarefa.Critica => "danger",
+            _ => "secondary"
+        };
+    }
+}
