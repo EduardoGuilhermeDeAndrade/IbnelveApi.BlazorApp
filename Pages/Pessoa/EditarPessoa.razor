@@ -188,8 +188,8 @@
                                         <span class="input-group-text">
                                             <i class="fas fa-id-card text-muted"></i>
                                         </span>
-                                        <InputText @bind-Value="editPessoa.CPF" class="form-control" id="cpf" 
-                                                   placeholder="000.000.000-00" maxlength="14" @oninput="FormatCPF" />
+                                        <InputText @bind-Value="editPessoa.CPF" class="form-control" id="cpf"
+                                                   placeholder="000.000.000-00" maxlength="14" readonly @oninput="FormatCPF" />
                                     </div>
                                     <ValidationMessage For="@(() => editPessoa.CPF)" class="text-danger small mt-1" />
                                 </div>

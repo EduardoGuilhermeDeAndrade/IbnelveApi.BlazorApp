@@ -104,7 +104,8 @@ public class PessoaService : IPessoaService
     {
         try
         {
-            var url = $"api/pessoa/search?nome={Uri.EscapeDataString(nome)}&includeDeleted={includeDeleted}";
+            var url = $"api/pessoa/nome/{Uri.EscapeDataString(nome)}";
+            //var url = $"api/pessoa/search?nome={Uri.EscapeDataString(nome)}&includeDeleted={includeDeleted}";
             var response = await _httpClient.GetAsync(url);
             var content = await response.Content.ReadAsStringAsync();
             
